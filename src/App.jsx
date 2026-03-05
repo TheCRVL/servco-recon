@@ -856,6 +856,9 @@ export default function ReconDashboard() {
   const [loading, setLoading]         = useState(false);
   const [confetti, setConfetti]       = useState(false);
   const [splash, setSplash]           = useState(true);
+  const [pwInput, setPwInput]         = useState("");
+  const [pwError, setPwError]         = useState(false);
+  const [pwUnlocked, setPwUnlocked]   = useState(false);
   const [connecting, setConnecting]   = useState(false);
   const [lastSynced, setLastSynced]   = useState(null);
   const [syncAgo, setSyncAgo]         = useState("");
@@ -1040,32 +1043,94 @@ export default function ReconDashboard() {
         V 1 . 0
       </div>
 
-      {/* Connect button */}
-      <button
-        disabled={connecting}
-        onClick={async () => {
-          setConnecting(true);
-          await loadNotion();
-        }}
-        style={{
-          background: connecting ? "#0f172a" : "linear-gradient(135deg,#0ea5e9,#38bdf8)",
-          color: connecting ? "#475569" : "#fff",
-          border: connecting ? "1px solid #1e293b" : "none",
-          borderRadius:"12px",
-          padding:"16px 48px",
-          fontSize:"16px",
-          fontWeight:800,
-          letterSpacing:"0.08em",
-          textTransform:"uppercase",
-          cursor: connecting ? "not-allowed" : "pointer",
-          transition:"all 0.2s",
-          boxShadow: connecting ? "none" : "0 0 40px rgba(14,165,233,0.4), 0 4px 20px rgba(0,0,0,0.4)",
-          transform: connecting ? "scale(0.97)" : "scale(1)",
-          minWidth:"200px",
-        }}
-      >
-        {connecting ? "Connecting…" : "Connect"}
-      </button>
+      {/* Password gate */}
+      {!pwUnlocked ? (
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"12px",width:"100%",maxWidth:"320px"}}>
+          <input
+            type="password"
+            placeholder="Enter password"
+            value={pwInput}
+            onChange={e=>{ setPwInput(e.target.value); setPwError(false); }}
+            onKeyDown={e=>{
+              if(e.key==="Enter"){
+                if(pwInput==="vercel13"){ setPwUnlocked(true); setPwError(false); }
+                else { setPwError(true); setPwInput(""); }
+              }
+            }}
+            style={{
+              width:"100%",
+              background:"#0f172a",
+              border:`1px solid ${pwError?"#dc2626":"#1e3a5f"}`,
+              borderRadius:"10px",
+              padding:"14px 18px",
+              fontSize:"15px",
+              color:"#e2e8f0",
+              fontFamily:"'DM Mono',monospace",
+              fontWeight:500,
+              outline:"none",
+              letterSpacing:"0.15em",
+              textAlign:"center",
+              boxShadow: pwError ? "0 0 0 3px rgba(220,38,38,0.2)" : "none",
+              transition:"border 0.2s, box-shadow 0.2s",
+            }}
+          />
+          {pwError && (
+            <div style={{fontSize:"11px",color:"#f87171",fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase"}}>
+              ✕ Incorrect password
+            </div>
+          )}
+          <button
+            onClick={()=>{
+              if(pwInput==="vercel13"){ setPwUnlocked(true); setPwError(false); }
+              else { setPwError(true); setPwInput(""); }
+            }}
+            style={{
+              background:"linear-gradient(135deg,#0ea5e9,#38bdf8)",
+              color:"#fff",
+              border:"none",
+              borderRadius:"10px",
+              padding:"14px 48px",
+              fontSize:"15px",
+              fontWeight:800,
+              letterSpacing:"0.08em",
+              textTransform:"uppercase",
+              cursor:"pointer",
+              boxShadow:"0 0 30px rgba(14,165,233,0.35)",
+              transition:"all 0.2s",
+              width:"100%",
+            }}
+          >
+            Unlock
+          </button>
+        </div>
+      ) : (
+        /* Connect button — shown after password is correct */
+        <button
+          disabled={connecting}
+          onClick={async () => {
+            setConnecting(true);
+            await loadNotion();
+          }}
+          style={{
+            background: connecting ? "#0f172a" : "linear-gradient(135deg,#0ea5e9,#38bdf8)",
+            color: connecting ? "#475569" : "#fff",
+            border: connecting ? "1px solid #1e293b" : "none",
+            borderRadius:"12px",
+            padding:"16px 48px",
+            fontSize:"16px",
+            fontWeight:800,
+            letterSpacing:"0.08em",
+            textTransform:"uppercase",
+            cursor: connecting ? "not-allowed" : "pointer",
+            transition:"all 0.2s",
+            boxShadow: connecting ? "none" : "0 0 40px rgba(14,165,233,0.4), 0 4px 20px rgba(0,0,0,0.4)",
+            transform: connecting ? "scale(0.97)" : "scale(1)",
+            minWidth:"200px",
+          }}
+        >
+          {connecting ? "Connecting…" : "Connect"}
+        </button>
+      )}
 
       {/* Subtle footer */}
       <div style={{
