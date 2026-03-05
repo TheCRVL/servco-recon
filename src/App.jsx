@@ -24,13 +24,13 @@ const PIPELINE_STAGES = STAGES.filter(s => s.id !== "sold");
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const MOCK = [
-  { id:"1", stockNo:"GVA05952", vin:"1FTBR1C80RKA05952", year:"2024", make:"Ford",   model:"Transit",      keys:"2", miles:"8,923",  acv:"$24,500", rw:"R", titleState:"HI", payoffBank:"Ally", acquiredDate:"2026-01-28", payoffSent:"2026-02-01", titleRcvd:"2026-02-08", sentDMV:"2026-02-09", spiTitle:"2026-02-18", regExp:"2026-12-01", scExp:"2026-11-15", inSvc:"2026-02-10", svcDone:"2026-02-13", bodyShop:"",         detail:"2026-02-14", pics:"2026-02-15", frontline:"2026-02-16", soldDate:"", stage:"frontline",  notes:[{text:"Detail and photos done. Frontline ready.",author:"Kapono",date:"2026-02-15"}] },
-  { id:"2", stockNo:"WKA305P",  vin:"1N6BA1F42RN305002", year:"2016", make:"Nissan", model:"NV Passenger", keys:"1", miles:"83,422", acv:"$8,200",  rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-03-10", scExp:"2026-02-10", inSvc:"2026-02-20", svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"service",    notes:[{text:"Going in next available on heavy duty rack.",author:"Conrad",date:"2026-02-28"},{text:"HVAC heaterhose ordered from dealer.",author:"Lyie B",date:"2025-12-15"}] },
-  { id:"3", stockNo:"SFB53904", vin:"1C6JJTBG5NL153904", year:"2022", make:"Jeep",   model:"Gladiator",    keys:"2", miles:"62,088", acv:"$31,000", rw:"R", titleState:"ML", payoffBank:"Ally", acquiredDate:"2026-02-10", payoffSent:"2026-02-12", titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-01-15", scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"title_work", notes:[{text:"Mainland bank — Ally. Payoff check mailed 2/12.",author:"Michelle P",date:"2026-02-12"}] },
-  { id:"4", stockNo:"TYA22101", vin:"2T1BURHE0NC022101", year:"2023", make:"Toyota", model:"Corolla",      keys:"1", miles:"24,500", acv:"$18,750", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-15", payoffSent:"",          titleRcvd:"2026-02-22", sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"2026-02-01", inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"reg_safety", notes:[{text:"Failed safety check. Needs fresh SC before detail.",author:"Kapono",date:"2026-02-25"}] },
-  { id:"5", stockNo:"HNA88231", vin:"5FNYF6H09NB088231", year:"2021", make:"Honda",  model:"Pilot",        keys:"2", miles:"41,200", acv:"$22,000", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"2026-02-26", svcDone:"2026-03-01", bodyShop:"2026-03-01",detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"body_shop",  notes:[{text:"Minor bumper repair. Sent to sublet body shop.",author:"Tony",date:"2026-03-01"}] },
-  { id:"6", stockNo:"MZA91045", vin:"JM3KFBCM1L0391045", year:"2020", make:"Mazda",  model:"CX-5",         keys:"1", miles:"55,100", acv:"$14,200", rw:"W", titleState:"HI", payoffBank:"",     acquiredDate:"2026-03-01", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"fresh",      notes:[{text:"Just acquired. Decide R or W by tomorrow.",author:"Kapono",date:"2026-03-01"}] },
-  { id:"7", stockNo:"KIA77432",  vin:"5XXG14J27PG077432", year:"2023", make:"Kia",    model:"Sportage",     keys:"2", miles:"19,800", acv:"$26,500", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-10", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"2026-02-01", soldDate:"2026-02-15", stage:"sold",       notes:[{text:"Sold 2/15. Deal funded.",author:"Kapono",date:"2026-02-15"}] },
+  { id:"1", stockNo:"GVA05952", vin:"1FTBR1C80RKA05952", year:"2024", make:"Ford",   model:"Transit",      keys:"2", miles:"8,923",  acv:"$24,500", rw:"R", titleState:"HI", payoffBank:"Ally", acquiredDate:"2026-01-28", payoffSent:"2026-02-01", titleRcvd:"2026-02-08", sentDMV:"2026-02-09", spiTitle:"2026-02-18", regExp:"2026-12-01", scExp:"2026-11-15", inSvc:"2026-02-10", svcDone:"2026-02-13", bodyShop:"",         detail:"2026-02-14", pics:"2026-02-15", frontline:"2026-02-16", soldDate:"", stage:"frontline",  notes:[{text:"Detail and photos done. Frontline ready.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-28",service:"2026-02-10",detail:"2026-02-14",photos:"2026-02-15",frontline:"2026-02-16"} },
+  { id:"2", stockNo:"WKA305P",  vin:"1N6BA1F42RN305002", year:"2016", make:"Nissan", model:"NV Passenger", keys:"1", miles:"83,422", acv:"$8,200",  rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-03-10", scExp:"2026-02-10", inSvc:"2026-02-20", svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"service",    notes:[{text:"Going in next available on heavy duty rack.",author:"Conrad",date:"2026-02-28"},{text:"HVAC heaterhose ordered from dealer.",author:"Lyie B",date:"2025-12-15"}], stageTimes:{fresh:"2026-01-20",service:"2026-02-20"} },
+  { id:"3", stockNo:"SFB53904", vin:"1C6JJTBG5NL153904", year:"2022", make:"Jeep",   model:"Gladiator",    keys:"2", miles:"62,088", acv:"$31,000", rw:"R", titleState:"ML", payoffBank:"Ally", acquiredDate:"2026-02-10", payoffSent:"2026-02-12", titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-01-15", scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"title_work", notes:[{text:"Mainland bank — Ally. Payoff check mailed 2/12.",author:"Michelle P",date:"2026-02-12"}], stageTimes:{fresh:"2026-02-10",title_work:"2026-02-10"} },
+  { id:"4", stockNo:"TYA22101", vin:"2T1BURHE0NC022101", year:"2023", make:"Toyota", model:"Corolla",      keys:"1", miles:"24,500", acv:"$18,750", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-15", payoffSent:"",          titleRcvd:"2026-02-22", sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"2026-02-01", inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"reg_safety", notes:[{text:"Failed safety check. Needs fresh SC before detail.",author:"Kapono",date:"2026-02-25"}], stageTimes:{fresh:"2026-02-15",reg_safety:"2026-02-22"} },
+  { id:"5", stockNo:"HNA88231", vin:"5FNYF6H09NB088231", year:"2021", make:"Honda",  model:"Pilot",        keys:"2", miles:"41,200", acv:"$22,000", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"2026-02-26", svcDone:"2026-03-01", bodyShop:"2026-03-01",detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"body_shop",  notes:[{text:"Minor bumper repair. Sent to sublet body shop.",author:"Tony",date:"2026-03-01"}], stageTimes:{fresh:"2026-02-20",service:"2026-02-26",body_shop:"2026-03-01"} },
+  { id:"6", stockNo:"MZA91045", vin:"JM3KFBCM1L0391045", year:"2020", make:"Mazda",  model:"CX-5",         keys:"1", miles:"55,100", acv:"$14,200", rw:"W", titleState:"HI", payoffBank:"",     acquiredDate:"2026-03-01", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"fresh",      notes:[{text:"Just acquired. Decide R or W by tomorrow.",author:"Kapono",date:"2026-03-01"}], stageTimes:{fresh:"2026-03-01"} },
+  { id:"7", stockNo:"KIA77432",  vin:"5XXG14J27PG077432", year:"2023", make:"Kia",    model:"Sportage",     keys:"2", miles:"19,800", acv:"$26,500", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-10", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"2026-02-01", soldDate:"2026-02-15", stage:"sold",       notes:[{text:"Sold 2/15. Deal funded.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-10",frontline:"2026-02-01",sold:"2026-02-15"} },
 ];
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -161,6 +161,34 @@ function carToNotion(car) {
 }
 
 // ─── STATS BAR ────────────────────────────────────────────────────────────────
+// ─── STAGE TIMER HELPERS ─────────────────────────────────────────────────────
+function getStageDays(car) {
+  const entry = car.stageTimes && car.stageTimes[car.stage];
+  if (!entry) return null;
+  return daysSince(entry);
+}
+function stageTimeBadge(days) {
+  if (days === null || days === undefined) return null;
+  if (days < 7)  return { bg:"#14532d", fg:"#4ade80", label:days+"d" };
+  if (days < 15) return { bg:"#713f12", fg:"#fbbf24", label:days+"d" };
+  return              { bg:"#450a0a", fg:"#f87171", label:days+"d ⚠" };
+}
+function initStageTimes(car) {
+  const t = {};
+  const fill = (stage, date) => { if (!t[stage] && date) t[stage] = date; };
+  fill("fresh",      car.acquiredDate);
+  fill("trade_hold", car.acquiredDate);
+  fill("title_work", car.acquiredDate);
+  fill("reg_safety", car.acquiredDate);
+  fill("service",    car.inSvc || car.acquiredDate);
+  fill("body_shop",  car.bodyShop || car.acquiredDate);
+  fill("detail",     car.detail || car.acquiredDate);
+  fill("photos",     car.pics || car.acquiredDate);
+  fill("frontline",  car.frontline || car.acquiredDate);
+  fill("sold",       car.soldDate || car.acquiredDate);
+  return t;
+}
+
 function StatsBar({ cars }) {
   const frontline  = cars.filter(c=>c.stage==="frontline").length;
   const sold       = cars.filter(c=>c.stage==="sold").length;
@@ -536,9 +564,11 @@ function AddCarModal({ onClose, onAdd, existingVINs }) {
 
 // ─── KANBAN CARD ─────────────────────────────────────────────────────────────
 function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging, isGhost }) {
-  const days  = daysSince(car.acquiredDate);
-  const badge = t2lBadge(days);
-  const tags  = getIssueTags(car);
+  const days       = daysSince(car.acquiredDate);
+  const badge      = t2lBadge(days);
+  const tags       = getIssueTags(car);
+  const stageDays  = getStageDays(car);
+  const stageBadge = stageTimeBadge(stageDays);
   if (isGhost) return (
     <div style={{height:"60px",borderRadius:"8px",border:"2px dashed #334155",background:"#0a0f1a",opacity:0.5}}/>
   );
@@ -567,7 +597,10 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
         <span style={{fontSize:"11px",color:isDupVIN?"#ea580c":"#475569",fontFamily:"monospace",fontWeight:isDupVIN?700:400}}>
           {car.vin?car.vin.slice(-6):"—"}{isDupVIN?" ⚠ DUP":""}
         </span>
-        <span style={{background:badge.bg,color:badge.fg,fontSize:"10px",fontWeight:700,fontFamily:"monospace",padding:"2px 6px",borderRadius:"4px"}}>{badge.label}</span>
+        <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
+          {stageBadge&&<span title={"In this stage: "+stageDays+"d"} style={{background:stageBadge.bg,color:stageBadge.fg,fontSize:"9px",fontWeight:800,fontFamily:"monospace",padding:"2px 5px",borderRadius:"4px"}}>⏱ {stageBadge.label}</span>}
+          <span style={{background:badge.bg,color:badge.fg,fontSize:"10px",fontWeight:700,fontFamily:"monospace",padding:"2px 6px",borderRadius:"4px"}}>{badge.label}</span>
+        </div>
       </div>
       {tags.length>0&&(
         <div style={{display:"flex",flexWrap:"wrap",gap:"3px",marginTop:"4px"}}>
@@ -824,10 +857,50 @@ export default function ReconDashboard() {
   const [confetti, setConfetti]       = useState(false);
   const [splash, setSplash]           = useState(true);
   const [connecting, setConnecting]   = useState(false);
-  const [pwInput, setPwInput]         = useState("");
-  const [pwError, setPwError]         = useState(false);
+  const [lastSynced, setLastSynced]   = useState(null);
+  const [syncAgo, setSyncAgo]         = useState("");
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
+
+  // ── Silent background poll every 30s when Notion mode is on ────────────────
+  const silentPoll = useCallback(async () => {
+    try {
+      const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`,"POST",{page_size:200});
+      if (data.results) {
+        const fresh = data.results.map(page=>{
+          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
+          mc.stageTimes=initStageTimes(mc);
+          return mc;
+        });
+        // Merge remote data with local notes & stageTimes (preserve local overrides)
+        setCars(prev => fresh.map(f => {
+          const loc = prev.find(p=>p.id===f.id);
+          return loc ? {...f, notes:loc.notes, stageTimes:loc.stageTimes||f.stageTimes} : f;
+        }));
+        setLastSynced(Date.now());
+      }
+    } catch(_) { /* silent — don't alert user on background errors */ }
+  }, []);
+
+  // Start/stop the 30-second interval when Notion mode toggles
+  useEffect(() => {
+    if (!notionMode) return;
+    const id = setInterval(silentPoll, 30000);
+    return () => clearInterval(id);
+  }, [notionMode, silentPoll]);
+
+  // Tick the "synced X ago" label every 5 seconds
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!lastSynced) { setSyncAgo(""); return; }
+      const sec = Math.floor((Date.now()-lastSynced)/1000);
+      if (sec < 10)  setSyncAgo("just now");
+      else if (sec < 60) setSyncAgo(sec+"s ago");
+      else           setSyncAgo(Math.floor(sec/60)+"m ago");
+    }, 5000);
+    return () => clearInterval(id);
+  }, [lastSynced]);
 
   const loadNotion = async () => {
     setLoading(true); toast("Fetching from Notion…");
@@ -836,9 +909,11 @@ export default function ReconDashboard() {
       if (data.results) {
         const mapped = data.results.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
-          return {id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
+          mc.stageTimes=initStageTimes(mc);
+          return mc;
         });
-        setCars(mapped); toast(`✓ Loaded ${mapped.length} vehicles`);
+        setCars(mapped); setLastSynced(Date.now()); toast(`✓ Loaded ${mapped.length} vehicles`);
         setNotionMode(true); setSplash(false); setConnecting(false);
       }
     } catch(e) { toast(`❌ ${e.message}`); setConnecting(false); }
@@ -857,6 +932,13 @@ export default function ReconDashboard() {
 
   const handleSave = updated => {
     const prev = cars.find(c=>c.id===updated.id);
+    // Track stage entry time if stage changed
+    if (prev && prev.stage !== updated.stage) {
+      const today = new Date().toISOString().split("T")[0];
+      const st = {...(updated.stageTimes||prev.stageTimes||{})};
+      if (!st[updated.stage]) st[updated.stage] = today;
+      updated = {...updated, stageTimes:st};
+    }
     // Fire confetti when moved to sold
     if (prev && prev.stage !== "sold" && updated.stage === "sold") setConfetti(true);
     setCars(cs=>cs.map(c=>c.id===updated.id?updated:c));
@@ -883,8 +965,11 @@ export default function ReconDashboard() {
   const handleStageChange = (carId, newStage) => {
     setCars(cs=>cs.map(c=>{
       if(c.id!==carId) return c;
-      const updated = {...c, stage:newStage};
-      if(newStage==="sold" && !updated.soldDate) updated.soldDate = new Date().toISOString().split("T")[0];
+      const today = new Date().toISOString().split("T")[0];
+      const st = {...(c.stageTimes||{})};
+      if (!st[newStage]) st[newStage] = today;
+      const updated = {...c, stage:newStage, stageTimes:st};
+      if(newStage==="sold" && !updated.soldDate) updated.soldDate = today;
       if(notionMode) saveNotion(updated);
       // Fire confetti on sold
       if(c.stage!=="sold" && newStage==="sold") setTimeout(()=>setConfetti(true),50);
@@ -955,47 +1040,10 @@ export default function ReconDashboard() {
         V 1 . 0
       </div>
 
-      {/* Password */}
-      <div style={{marginBottom:"20px",textAlign:"center"}}>
-        <input
-          type="password"
-          placeholder="Enter password"
-          value={pwInput}
-          onChange={e=>{setPwInput(e.target.value);setPwError(false);}}
-          onKeyDown={e=>{
-            if(e.key==="Enter"&&!connecting){
-              if(pwInput!=="vercel13"){setPwError(true);return;}
-              setPwError(false);setConnecting(true);loadNotion();
-            }
-          }}
-          style={{
-            background:"#0f172a",
-            border:`1px solid ${pwError?"#dc2626":"#1e293b"}`,
-            borderRadius:"8px",
-            color:"#f1f5f9",
-            fontSize:"14px",
-            padding:"12px 20px",
-            outline:"none",
-            width:"220px",
-            textAlign:"center",
-            letterSpacing:"0.1em",
-            fontFamily:"'DM Mono',monospace",
-            boxShadow: pwError ? "0 0 0 2px rgba(220,38,38,0.25)" : "none",
-          }}
-        />
-        {pwError && (
-          <div style={{marginTop:"8px",fontSize:"11px",color:"#f87171",fontWeight:700,letterSpacing:"0.05em"}}>
-            ✕ Incorrect password
-          </div>
-        )}
-      </div>
-
       {/* Connect button */}
       <button
         disabled={connecting}
         onClick={async () => {
-          if (pwInput !== "vercel13") { setPwError(true); return; }
-          setPwError(false);
           setConnecting(true);
           await loadNotion();
         }}
@@ -1076,6 +1124,11 @@ export default function ReconDashboard() {
           <span className="nav-title" style={{fontSize:"12px",color:"#475569",fontFamily:"'DM Sans',sans-serif"}}>Recon Pipeline</span>
         </div>
         <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+          {notionMode&&!status&&syncAgo&&(
+            <span style={{fontSize:"10px",color:"#475569",padding:"3px 8px",background:"#0f172a",border:"1px solid #1e293b",borderRadius:"6px",whiteSpace:"nowrap",fontFamily:"monospace"}}>
+              ↻ {syncAgo}
+            </span>
+          )}
           {status&&<span style={{fontSize:"11px",color:"#4ade80",padding:"3px 8px",background:"#14532d33",border:"1px solid #15803d",borderRadius:"6px",whiteSpace:"nowrap"}}>{status}</span>}
           <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();}} style={{...btn(notionMode?"#1a2744":"#1e293b",notionMode?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 10px"}}>
             {notionMode?"🔗 Live":"🔗 Notion"}
