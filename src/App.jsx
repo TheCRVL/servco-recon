@@ -915,7 +915,6 @@ export default function ReconDashboard() {
           width:"min(520px, 85vw)",
           marginBottom:"36px",
           opacity: 0.95,
-          filter:"drop-shadow(0 0 40px rgba(56,189,248,0.15))",
           mixBlendMode:"screen",
         }}
       />
@@ -1011,6 +1010,7 @@ export default function ReconDashboard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600;800&display=swap');
         *{box-sizing:border-box;}
+        html,body,#root{margin:0;padding:0;background:#060b14;}
         ::-webkit-scrollbar{width:4px;height:4px;}
         ::-webkit-scrollbar-track{background:#0f172a;}
         ::-webkit-scrollbar-thumb{background:#334155;border-radius:3px;}
