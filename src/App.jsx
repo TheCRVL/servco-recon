@@ -257,15 +257,45 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
   const [form, setForm]                   = useState({...car});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [regSafetyWarn, setRegSafetyWarn] = useState(false);
-  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // Auto-stage logic: when certain date fields are set, advance the stage intelligently
+  const autoStage = (key, val, currentForm) => {
+    const f = {...currentForm, [key]: val};
+    // Only auto-advance — never auto-retreat from a later stage
+    const stageOrder = ["fresh","trade_hold","title_work","reg_safety","service","body_shop","detail","photos","frontline","sold"];
+    const currentIdx = stageOrder.indexOf(f.stage);
+    let newStage = f.stage;
+
+    if (key === "sentDMV" && val)    newStage = "title_work";
+    if (key === "payoffSent" && val) newStage = "title_work";
+    if (key === "regExp" || key === "scExp") {
+      // If either exp date is in the past (or missing), suggest reg/safety
+      const regExp = key === "regExp" ? val : f.regExp;
+      const scExp  = key === "scExp"  ? val : f.scExp;
+      if (isExpired(regExp) || isExpired(scExp)) newStage = "reg_safety";
+    }
+    if (key === "inSvc" && val)     newStage = "service";
+    if (key === "svcDone" && val)   newStage = "detail";
+    if (key === "pics" && val)      newStage = "photos";
+    if (key === "frontline" && val) newStage = "frontline";
+    if (key === "soldDate" && val)  newStage = "sold";
+
+    // Only advance, never retreat automatically
+    const newIdx = stageOrder.indexOf(newStage);
+    if (newIdx > currentIdx) f.stage = newStage;
+    return f;
+  };
+
+  const set = (k, v) => setForm(f => autoStage(k, v, f));
 
   const handleStageClick = (stageId) => {
+    // Allow clicking any stage manually — including moving back from sold
     if (stageId === "reg_safety") {
       const regOk = form.regExp && !isExpired(form.regExp);
       const scOk  = form.scExp  && !isExpired(form.scExp);
       if (regOk && scOk) { setRegSafetyWarn(true); return; }
     }
-    set("stage", stageId);
+    setForm(f => ({...f, stage: stageId}));
     setRegSafetyWarn(false);
   };
 
