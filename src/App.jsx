@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 
 // ─── NOTION CONFIG ────────────────────────────────────────────────────────────
-const NOTION_TOKEN = import.meta.env.VITE_NOTION_TOKEN;
-const NOTION_DB_ID = import.meta.env.VITE_NOTION_DB_ID;
+// Credentials live in Vercel environment variables — never hardcoded
+const NOTION_TOKEN = import.meta.env.VITE_NOTION_TOKEN || "";
+const NOTION_DB_ID = import.meta.env.VITE_NOTION_DB_ID || "";
 
-// Multiple CORS proxies — tried in order until one works
-const PROXIES = [
-  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://thingproxy.freeboard.io/fetch/${url}`,
-];
+// Routes through our own Vercel serverless function — no CORS issues
 
 // ─── PIPELINE STAGES ─────────────────────────────────────────────────────────
 const STAGES = [
@@ -132,24 +128,17 @@ const btn = (bg, border) => ({
 
 // ─── NOTION API ───────────────────────────────────────────────────────────────
 async function notionFetch(path, method="GET", body=null) {
-  const notionUrl = `https://api.notion.com/v1${path}`;
-  const headers = {
-    "Authorization": `Bearer ${NOTION_TOKEN}`,
-    "Notion-Version": "2022-06-28",
-    "Content-Type": "application/json"
-  };
-  const fetchOpts = { method, headers, ...(body ? {body:JSON.stringify(body)} : {}) };
-  let lastErr = "";
-  for (const makeProxy of PROXIES) {
-    try {
-      const res = await fetch(makeProxy(notionUrl), fetchOpts);
-      if (!res.ok) { lastErr = `HTTP ${res.status}`; continue; }
-      const data = await res.json();
-      if (data.object === "error") throw new Error(`Notion: ${data.message}`);
-      return data;
-    } catch(e) { lastErr = e.message; }
-  }
-  throw new Error(`All proxies failed — ${lastErr}`);
+  // Calls our Vercel serverless function — no CORS issues
+  const url = `/api/notion?path=${encodeURIComponent(path.replace(/^\//, ""))}`;
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (data.object === "error") throw new Error(`Notion: ${data.message}`);
+  if (data.error) throw new Error(data.error);
+  return data;
 }
 function carToNotion(car) {
   const rt = v => ({rich_text:[{text:{content:v||""}}]});
