@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 
 // ─── NOTION CONFIG ────────────────────────────────────────────────────────────
-const NOTION_TOKEN = "YOUR_NOTION_INTEGRATION_TOKEN";
-const NOTION_DB_ID = "YOUR_NOTION_DATABASE_ID";
+const NOTION_TOKEN = import.meta.env.VITE_NOTION_TOKEN;
+const NOTION_DB_ID = import.meta.env.VITE_NOTION_DB_ID;
 
 // Multiple CORS proxies — tried in order until one works
 const PROXIES = [
