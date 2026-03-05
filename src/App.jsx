@@ -363,11 +363,17 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:"10px",marginBottom:"16px"}}>
           <ModalField label="Stock No" fkey="stockNo" form={form} set={set}/>
           <div style={{display:"flex",flexDirection:"column",gap:"4px",gridColumn:"span 2"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>VIN</label>
+            <label style={{fontSize:"10px",color:"#f87171",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>VIN <span style={{color:"#f87171"}}>*</span></label>
             <input value={form.vin||""} onChange={e=>set("vin",e.target.value)}
-              style={{...input(),borderColor:form.vin&&form.vin.length>0&&form.vin.length<17?"#ea580c":"#334155"}}/>
+              style={{...input(),borderColor:(!form.vin||form.vin.length===0)?"#dc2626":form.vin.length!==17?"#ea580c":"#334155"}}/>
+            {(!form.vin||form.vin.length===0)&&(
+              <div style={{fontSize:"11px",color:"#f87171",fontWeight:700}}>⚠ VIN is required</div>
+            )}
             {form.vin&&form.vin.length>0&&form.vin.length<17&&(
               <div style={{fontSize:"11px",color:"#fb923c",fontWeight:700}}>⚠ {form.vin.length}/17 characters</div>
+            )}
+            {form.vin&&form.vin.length>17&&(
+              <div style={{fontSize:"11px",color:"#f87171",fontWeight:700}}>⚠ VIN cannot exceed 17 characters — currently {form.vin.length}/17</div>
             )}
           </div>
           <ModalField label="Year"  fkey="year" form={form} set={set}/>
@@ -469,12 +475,18 @@ function AddCarModal({ onClose, onAdd, existingVINs }) {
             <input value={form.acv||""} onChange={e=>set("acv",e.target.value)} style={input()}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px",gridColumn:"1 / -1"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>VIN</label>
+            <label style={{fontSize:"10px",color:"#f87171",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>VIN <span style={{color:"#f87171"}}>*</span></label>
             <input value={form.vin||""} onChange={e=>set("vin",e.target.value)}
-              style={{...input(),borderColor:form.vin&&form.vin.length>0&&form.vin.length<17?"#ea580c":"#334155"}}
-              placeholder="17-character VIN"/>
+              style={{...input(),borderColor:(!form.vin||form.vin.length===0)?"#dc2626":form.vin.length!==17?"#ea580c":"#334155"}}
+              placeholder="17-character VIN (required)"/>
+            {(!form.vin||form.vin.length===0)&&(
+              <div style={{fontSize:"11px",color:"#f87171",fontWeight:700,marginTop:"2px"}}>⚠ VIN is required</div>
+            )}
             {form.vin&&form.vin.length>0&&form.vin.length<17&&(
               <div style={{fontSize:"11px",color:"#fb923c",fontWeight:700,marginTop:"2px"}}>⚠ VIN must be 17 characters — currently {form.vin.length}/17</div>
+            )}
+            {form.vin&&form.vin.length>17&&(
+              <div style={{fontSize:"11px",color:"#f87171",fontWeight:700,marginTop:"2px"}}>⚠ VIN cannot exceed 17 characters — currently {form.vin.length}/17</div>
             )}
             {form.vin&&form.vin.length===17&&vinDup&&(
               <div style={{fontSize:"11px",color:"#fb923c",fontWeight:700,marginTop:"2px"}}>⚠ This VIN already exists in inventory — possible duplicate or re-acquired vehicle.</div>
@@ -515,7 +527,7 @@ function AddCarModal({ onClose, onAdd, existingVINs }) {
         </div>
         <div style={{display:"flex",justifyContent:"flex-end",gap:"8px",flexWrap:"wrap"}}>
           <button onClick={onClose} style={btn("#1e293b","#334155")}>Cancel</button>
-          <button onClick={()=>{if(form.stockNo&&form.make){onAdd(form);onClose();}}} style={btn("#15803d","#4ade80")}>Add Vehicle</button>
+          <button onClick={()=>{if(form.vin&&form.vin.length===17){onAdd(form);onClose();}}} disabled={!form.vin||form.vin.length!==17} style={{...btn("#15803d","#4ade80"),opacity:(!form.vin||form.vin.length!==17)?0.4:1,cursor:(!form.vin||form.vin.length!==17)?"not-allowed":"pointer"}}>Add Vehicle</button>
         </div>
       </div>
     </div>
@@ -712,7 +724,7 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange }) {
               const daysAgo = soldDaysAgo(car);
               const daysLeft = daysAgo!==null?60-daysAgo:null;
               return (
-                <div key={car.id} onClick={()=>handleCardClick(car)}
+                <div key={car.id} onClick={()=>onCarClick(car)}
                   style={{background:"#0f172a",border:"1px solid #1e293b",borderLeft:"3px solid #818cf8",borderRadius:"8px",padding:"10px",cursor:"pointer",width:"190px",transition:"background 0.12s"}}
                   onMouseEnter={e=>e.currentTarget.style.background="#1e293b"}
                   onMouseLeave={e=>e.currentTarget.style.background="#0f172a"}>
