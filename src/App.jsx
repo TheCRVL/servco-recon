@@ -269,10 +269,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
     setRegSafetyWarn(false);
   };
 
-  // Shorthand wrappers that pass form+set automatically
-  const Field    = (p) => <ModalField    {...p} form={form} set={set}/>;
-  const FSelect  = (p) => <ModalSelect   {...p} form={form} set={set}/>;
-  const ExpField = (p) => <ModalExpField {...p} form={form} set={set}/>;
+  // Use ModalField/ModalSelect/ModalExpField directly with form+set props
 
   const days  = daysSince(form.acquiredDate);
   const badge = t2lBadge(days);
@@ -343,35 +340,35 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
               <div style={{fontSize:"11px",color:"#fb923c",fontWeight:700}}>⚠ {form.vin.length}/17 characters</div>
             )}
           </div>
-          <Field label="Year"  fkey="year"/>
-          <Field label="Make"  fkey="make"/>
-          <Field label="Model" fkey="model"/>
-          <Field label="Miles" fkey="miles"/>
-          <Field label="ACV"   fkey="acv"/>
-          <FSelect label="Keys"        fkey="keys"       options={[{v:"1",l:"1 Key"},{v:"2",l:"2 Keys"}]}/>
-          <FSelect label="Retail/Whsl" fkey="rw"         options={[{v:"R",l:"Retail"},{v:"W",l:"Wholesale"}]}/>
-          <FSelect label="Title State" fkey="titleState" options={[{v:"HI",l:"Hawaii (HI)"},{v:"ML",l:"Mainland (ML)"}]}/>
+          <ModalField label="Year"  fkey="year" form={form} set={set}/>
+          <ModalField label="Make"  fkey="make" form={form} set={set}/>
+          <ModalField label="Model" fkey="model" form={form} set={set}/>
+          <ModalField label="Miles" fkey="miles" form={form} set={set}/>
+          <ModalField label="ACV"   fkey="acv" form={form} set={set}/>
+          <ModalSelect label="Keys"        fkey="keys"       options={[{v:"1",l:"1 Key"},{v:"2",l:"2 Keys"}]} form={form} set={set}/>
+          <ModalSelect label="Retail/Whsl" fkey="rw"         options={[{v:"R",l:"Retail"},{v:"W",l:"Wholesale"}]} form={form} set={set}/>
+          <ModalSelect label="Title State" fkey="titleState" options={[{v:"HI",l:"Hawaii (HI)"},{v:"ML",l:"Mainland (ML)"}]} form={form} set={set}/>
         </div>
 
         {/* Timeline */}
         <div style={{borderTop:"1px solid #1e293b",paddingTop:"14px",marginBottom:"14px"}}>
           <div style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.1em",marginBottom:"10px"}}>TIMELINE</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:"10px"}}>
-            <Field    label="Acquired"      fkey="acquiredDate"  type="date"/>
-            <Field    label="Payoff Bank"   fkey="payoffBank"/>
-            <Field    label="Payoff Sent"   fkey="payoffSent"    type="date"/>
-            <Field    label="Title RCVD"    fkey="titleRcvd"     type="date"/>
-            <Field    label="Sent DMV"      fkey="sentDMV"       type="date"/>
-            <Field    label="SPI Title"     fkey="spiTitle"      type="date"/>
-            <ExpField label="Reg Exp"       fkey="regExp"/>
-            <ExpField label="SC Exp"        fkey="scExp"/>
-            <Field    label="In Service"    fkey="inSvc"         type="date"/>
-            <Field    label="Service Done"  fkey="svcDone"       type="date"/>
-            <Field    label="Body Shop"     fkey="bodyShop"      type="date"/>
-            <Field    label="Detail"        fkey="detail"        type="date"/>
-            <Field    label="Photos"        fkey="pics"          type="date"/>
-            <Field    label="Frontline"     fkey="frontline"     type="date"/>
-            <Field    label="Sold Date"     fkey="soldDate"      type="date"/>
+            <ModalField label="Acquired"      fkey="acquiredDate"  type="date" form={form} set={set}/>
+            <ModalField label="Payoff Bank"   fkey="payoffBank" form={form} set={set}/>
+            <ModalField label="Payoff Sent"   fkey="payoffSent"    type="date" form={form} set={set}/>
+            <ModalField label="Title RCVD"    fkey="titleRcvd"     type="date" form={form} set={set}/>
+            <ModalField label="Sent DMV"      fkey="sentDMV"       type="date" form={form} set={set}/>
+            <ModalField label="SPI Title"     fkey="spiTitle"      type="date" form={form} set={set}/>
+            <ModalExpField label="Reg Exp"       fkey="regExp" form={form} set={set}/>
+            <ModalExpField label="SC Exp"        fkey="scExp" form={form} set={set}/>
+            <ModalField label="In Service"    fkey="inSvc"         type="date" form={form} set={set}/>
+            <ModalField label="Service Done"  fkey="svcDone"       type="date" form={form} set={set}/>
+            <ModalField label="Body Shop"     fkey="bodyShop"      type="date" form={form} set={set}/>
+            <ModalField label="Detail"        fkey="detail"        type="date" form={form} set={set}/>
+            <ModalField label="Photos"        fkey="pics"          type="date" form={form} set={set}/>
+            <ModalField label="Frontline"     fkey="frontline"     type="date" form={form} set={set}/>
+            <ModalField label="Sold Date"     fkey="soldDate"      type="date" form={form} set={set}/>
           </div>
         </div>
 
