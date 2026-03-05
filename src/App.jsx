@@ -663,7 +663,9 @@ export default function ReconDashboard() {
 
   const saveNotion = async car => {
     try {
-      if(car.id.length>10) await notionFetch(`/pages/${car.id}`,"PATCH",{properties:carToNotion(car)});
+      // Notion UUIDs contain dashes e.g. "abc123-de45-..." — timestamp IDs don't
+      const isNotionId = car.id.includes("-");
+      if(isNotionId) await notionFetch(`/pages/${car.id}`,"PATCH",{properties:carToNotion(car)});
       else await notionFetch("/pages","POST",{parent:{database_id:NOTION_DB_ID},properties:carToNotion(car)});
       toast("✓ Saved to Notion");
     } catch(e) { toast(`❌ Save failed: ${e.message}`); }
