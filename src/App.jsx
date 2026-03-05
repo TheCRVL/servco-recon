@@ -254,13 +254,9 @@ function ModalExpField({label, fkey, form, set}) {
 
 // ─── CAR DETAIL MODAL ────────────────────────────────────────────────────────
 function CarModal({ car, onClose, onSave, onDelete, onSold }) {
-  const [form, setForm]                     = useState({...car});
-  const [confirmDelete, setConfirmDelete]   = useState(false);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [regSafetyWarn, setRegSafetyWarn]   = useState(false);
-
-  const isDirty   = JSON.stringify(form) !== JSON.stringify(car);
-  const handleClose = () => { if (isDirty) setConfirmDiscard(true); else onClose(); };
+  const [form, setForm]                   = useState({...car});
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [regSafetyWarn, setRegSafetyWarn] = useState(false);
 
   // Auto-stage logic: when certain date fields are set, advance the stage intelligently
   const autoStage = (key, val, currentForm) => {
@@ -311,7 +307,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
-      onClick={e=>e.target===e.currentTarget&&handleClose()}>
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:"12px",width:"100%",maxWidth:"740px",padding:"20px",boxShadow:"0 30px 80px rgba(0,0,0,0.9)",margin:"auto"}}>
 
         {/* Header */}
@@ -322,7 +318,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
           </div>
           <div style={{display:"flex",gap:"6px",alignItems:"center",flexShrink:0}}>
             <span style={{background:badge.bg,color:badge.fg,fontSize:"11px",fontWeight:700,fontFamily:"monospace",padding:"3px 8px",borderRadius:"5px",whiteSpace:"nowrap"}}>T2L {badge.label}</span>
-            <button onClick={handleClose} style={{background:"none",border:"1px solid #334155",color:"#94a3b8",borderRadius:"6px",padding:"6px 10px",cursor:"pointer",fontSize:"13px"}}>✕</button>
+            <button onClick={onClose} style={{background:"none",border:"1px solid #334155",color:"#94a3b8",borderRadius:"6px",padding:"6px 10px",cursor:"pointer",fontSize:"13px"}}>✕</button>
           </div>
         </div>
 
@@ -418,15 +414,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
         </div>
 
         {/* Actions */}
-        {confirmDiscard ? (
-          <div style={{marginTop:"16px",background:"#1a1200",border:"1px solid #ca8a04",borderRadius:"8px",padding:"12px 14px"}}>
-            <div style={{fontSize:"13px",color:"#fde68a",fontWeight:600,marginBottom:"10px"}}>⚠ You have unsaved changes — discard them?</div>
-            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button onClick={()=>setConfirmDiscard(false)} style={btn("#1e293b","#334155")}>Keep Editing</button>
-              <button onClick={onClose} style={{...btn("#7c2d12","#ea580c"),color:"#fed7aa"}}>Discard Changes</button>
-            </div>
-          </div>
-        ) : confirmDelete ? (
+        {confirmDelete ? (
           <div style={{marginTop:"16px",background:"#3f0e0e",border:"1px solid #dc2626",borderRadius:"8px",padding:"12px 14px"}}>
             <div style={{fontSize:"13px",color:"#fca5a5",fontWeight:600,marginBottom:"10px"}}>Delete <strong>{form.year} {form.make} {form.model}</strong> (#{form.stockNo})? This cannot be undone.</div>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
@@ -438,7 +426,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"16px",flexWrap:"wrap",gap:"8px"}}>
             <button onClick={()=>setConfirmDelete(true)} style={{...btn("#1e293b","#334155"),color:"#f87171",fontSize:"12px"}}>🗑 Delete</button>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button onClick={handleClose} style={btn("#1e293b","#334155")}>Cancel</button>
+              <button onClick={onClose} style={btn("#1e293b","#334155")}>Cancel</button>
               <button onClick={()=>{onSave(form);onClose();}} style={btn("#15803d","#4ade80")}>Save Changes</button>
             </div>
           </div>
@@ -451,17 +439,13 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
 // ─── ADD CAR MODAL ────────────────────────────────────────────────────────────
 function AddCarModal({ onClose, onAdd, existingVINs }) {
   const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:""};
-  const [form,setForm]                      = useState(blank);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [form,setForm] = useState(blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const vinDup = form.vin&&form.vin.length>5&&existingVINs.has(form.vin.toUpperCase());
 
-  const isDirty     = !!(form.stockNo||form.vin||form.year||form.make||form.model||form.miles||form.acv||form.payoffBank);
-  const handleClose = () => { if (isDirty) setConfirmDiscard(true); else onClose(); };
-
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
-      onClick={e=>e.target===e.currentTarget&&handleClose()}>
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:"12px",width:"100%",maxWidth:"540px",padding:"20px",boxShadow:"0 30px 80px rgba(0,0,0,0.9)",margin:"auto"}}>
         <div style={{fontSize:"20px",fontWeight:800,color:"#f1f5f9",fontFamily:"'DM Sans',sans-serif",marginBottom:"16px"}}>Add New Vehicle</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:"10px",marginBottom:"14px"}}>
@@ -541,20 +525,10 @@ function AddCarModal({ onClose, onAdd, existingVINs }) {
             ))}
           </div>
         </div>
-        {confirmDiscard ? (
-          <div style={{marginTop:"4px",background:"#1a1200",border:"1px solid #ca8a04",borderRadius:"8px",padding:"12px 14px"}}>
-            <div style={{fontSize:"13px",color:"#fde68a",fontWeight:600,marginBottom:"10px"}}>⚠ You have unsaved changes — discard them?</div>
-            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button onClick={()=>setConfirmDiscard(false)} style={btn("#1e293b","#334155")}>Keep Editing</button>
-              <button onClick={onClose} style={{...btn("#7c2d12","#ea580c"),color:"#fed7aa"}}>Discard Changes</button>
-            </div>
-          </div>
-        ) : (
-          <div style={{display:"flex",justifyContent:"flex-end",gap:"8px",flexWrap:"wrap"}}>
-            <button onClick={handleClose} style={btn("#1e293b","#334155")}>Cancel</button>
-            <button onClick={()=>{if(form.vin&&form.vin.length===17){onAdd(form);onClose();}}} disabled={!form.vin||form.vin.length!==17} style={{...btn("#15803d","#4ade80"),opacity:(!form.vin||form.vin.length!==17)?0.4:1,cursor:(!form.vin||form.vin.length!==17)?"not-allowed":"pointer"}}>Add Vehicle</button>
-          </div>
-        )}
+        <div style={{display:"flex",justifyContent:"flex-end",gap:"8px",flexWrap:"wrap"}}>
+          <button onClick={onClose} style={btn("#1e293b","#334155")}>Cancel</button>
+          <button onClick={()=>{if(form.vin&&form.vin.length===17){onAdd(form);onClose();}}} disabled={!form.vin||form.vin.length!==17} style={{...btn("#15803d","#4ade80"),opacity:(!form.vin||form.vin.length!==17)?0.4:1,cursor:(!form.vin||form.vin.length!==17)?"not-allowed":"pointer"}}>Add Vehicle</button>
+        </div>
       </div>
     </div>
   );
@@ -850,8 +824,54 @@ export default function ReconDashboard() {
   const [confetti, setConfetti]       = useState(false);
   const [splash, setSplash]           = useState(true);
   const [connecting, setConnecting]   = useState(false);
+  const [lastSynced, setLastSynced]   = useState(null);
+  const [syncAgo, setSyncAgo]         = useState("");
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
+
+  // ─── SILENT BACKGROUND POLL ─────────────────────────────────────────────────
+  // Fetches Notion every 30s without touching loading state or showing toasts.
+  // Skips updating whichever car is open in a modal so unsaved edits aren't lost.
+  const silentPoll = useCallback(async () => {
+    if (!NOTION_DB_ID) return;
+    try {
+      const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`, "POST", {page_size:200});
+      if (data.results) {
+        const mapped = data.results.map(page => {
+          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
+          return {id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
+        });
+        setCars(prev => mapped.map(fresh => {
+          const existing = prev.find(c => c.id === fresh.id);
+          // Preserve local notes (not stored in Notion) on every poll
+          if (existing) return {...fresh, notes: existing.notes ?? []};
+          return fresh;
+        }));
+        setLastSynced(new Date());
+      }
+    } catch(e) { /* silent — don't surface background poll errors as toasts */ }
+  }, []);
+
+  // Start/stop the 30s interval whenever Notion mode is toggled
+  useEffect(() => {
+    if (!notionMode) return;
+    const id = setInterval(silentPoll, 30000);
+    return () => clearInterval(id);
+  }, [notionMode, silentPoll]);
+
+  // Tick the "X ago" label every 15s
+  useEffect(() => {
+    const fmt = () => {
+      if (!lastSynced) return;
+      const s = Math.floor((Date.now() - lastSynced.getTime()) / 1000);
+      if (s < 10)  setSyncAgo("just now");
+      else if (s < 60) setSyncAgo(`${s}s ago`);
+      else setSyncAgo(`${Math.floor(s/60)}m ago`);
+    };
+    fmt();
+    const id = setInterval(fmt, 15000);
+    return () => clearInterval(id);
+  }, [lastSynced]);
 
   const loadNotion = async () => {
     setLoading(true); toast("Fetching from Notion…");
@@ -863,7 +883,7 @@ export default function ReconDashboard() {
           return {id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
         });
         setCars(mapped); toast(`✓ Loaded ${mapped.length} vehicles`);
-        setNotionMode(true); setSplash(false); setConnecting(false);
+        setNotionMode(true); setSplash(false); setConnecting(false); setLastSynced(new Date());
       }
     } catch(e) { toast(`❌ ${e.message}`); setConnecting(false); }
     setLoading(false);
@@ -1064,6 +1084,11 @@ export default function ReconDashboard() {
         </div>
         <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
           {status&&<span style={{fontSize:"11px",color:"#4ade80",padding:"3px 8px",background:"#14532d33",border:"1px solid #15803d",borderRadius:"6px",whiteSpace:"nowrap"}}>{status}</span>}
+          {notionMode&&lastSynced&&!status&&(
+            <span style={{fontSize:"10px",color:"#334155",fontFamily:"monospace",whiteSpace:"nowrap"}}>
+              ⟳ {syncAgo}
+            </span>
+          )}
           <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();}} style={{...btn(notionMode?"#1a2744":"#1e293b",notionMode?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 10px"}}>
             {notionMode?"🔗 Live":"🔗 Notion"}
           </button>
