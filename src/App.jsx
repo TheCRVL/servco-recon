@@ -824,54 +824,10 @@ export default function ReconDashboard() {
   const [confetti, setConfetti]       = useState(false);
   const [splash, setSplash]           = useState(true);
   const [connecting, setConnecting]   = useState(false);
-  const [lastSynced, setLastSynced]   = useState(null);
-  const [syncAgo, setSyncAgo]         = useState("");
+  const [pwInput, setPwInput]         = useState("");
+  const [pwError, setPwError]         = useState(false);
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
-
-  // ─── SILENT BACKGROUND POLL ─────────────────────────────────────────────────
-  // Fetches Notion every 30s without touching loading state or showing toasts.
-  // Skips updating whichever car is open in a modal so unsaved edits aren't lost.
-  const silentPoll = useCallback(async () => {
-    if (!NOTION_DB_ID) return;
-    try {
-      const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`, "POST", {page_size:200});
-      if (data.results) {
-        const mapped = data.results.map(page => {
-          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
-          return {id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
-        });
-        setCars(prev => mapped.map(fresh => {
-          const existing = prev.find(c => c.id === fresh.id);
-          // Preserve local notes (not stored in Notion) on every poll
-          if (existing) return {...fresh, notes: existing.notes ?? []};
-          return fresh;
-        }));
-        setLastSynced(new Date());
-      }
-    } catch(e) { /* silent — don't surface background poll errors as toasts */ }
-  }, []);
-
-  // Start/stop the 30s interval whenever Notion mode is toggled
-  useEffect(() => {
-    if (!notionMode) return;
-    const id = setInterval(silentPoll, 30000);
-    return () => clearInterval(id);
-  }, [notionMode, silentPoll]);
-
-  // Tick the "X ago" label every 15s
-  useEffect(() => {
-    const fmt = () => {
-      if (!lastSynced) return;
-      const s = Math.floor((Date.now() - lastSynced.getTime()) / 1000);
-      if (s < 10)  setSyncAgo("just now");
-      else if (s < 60) setSyncAgo(`${s}s ago`);
-      else setSyncAgo(`${Math.floor(s/60)}m ago`);
-    };
-    fmt();
-    const id = setInterval(fmt, 15000);
-    return () => clearInterval(id);
-  }, [lastSynced]);
 
   const loadNotion = async () => {
     setLoading(true); toast("Fetching from Notion…");
@@ -883,7 +839,7 @@ export default function ReconDashboard() {
           return {id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
         });
         setCars(mapped); toast(`✓ Loaded ${mapped.length} vehicles`);
-        setNotionMode(true); setSplash(false); setConnecting(false); setLastSynced(new Date());
+        setNotionMode(true); setSplash(false); setConnecting(false);
       }
     } catch(e) { toast(`❌ ${e.message}`); setConnecting(false); }
     setLoading(false);
@@ -999,10 +955,47 @@ export default function ReconDashboard() {
         V 1 . 0
       </div>
 
+      {/* Password */}
+      <div style={{marginBottom:"20px",textAlign:"center"}}>
+        <input
+          type="password"
+          placeholder="Enter password"
+          value={pwInput}
+          onChange={e=>{setPwInput(e.target.value);setPwError(false);}}
+          onKeyDown={e=>{
+            if(e.key==="Enter"&&!connecting){
+              if(pwInput!=="vercel13"){setPwError(true);return;}
+              setPwError(false);setConnecting(true);loadNotion();
+            }
+          }}
+          style={{
+            background:"#0f172a",
+            border:`1px solid ${pwError?"#dc2626":"#1e293b"}`,
+            borderRadius:"8px",
+            color:"#f1f5f9",
+            fontSize:"14px",
+            padding:"12px 20px",
+            outline:"none",
+            width:"220px",
+            textAlign:"center",
+            letterSpacing:"0.1em",
+            fontFamily:"'DM Mono',monospace",
+            boxShadow: pwError ? "0 0 0 2px rgba(220,38,38,0.25)" : "none",
+          }}
+        />
+        {pwError && (
+          <div style={{marginTop:"8px",fontSize:"11px",color:"#f87171",fontWeight:700,letterSpacing:"0.05em"}}>
+            ✕ Incorrect password
+          </div>
+        )}
+      </div>
+
       {/* Connect button */}
       <button
         disabled={connecting}
         onClick={async () => {
+          if (pwInput !== "vercel13") { setPwError(true); return; }
+          setPwError(false);
           setConnecting(true);
           await loadNotion();
         }}
@@ -1084,11 +1077,6 @@ export default function ReconDashboard() {
         </div>
         <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
           {status&&<span style={{fontSize:"11px",color:"#4ade80",padding:"3px 8px",background:"#14532d33",border:"1px solid #15803d",borderRadius:"6px",whiteSpace:"nowrap"}}>{status}</span>}
-          {notionMode&&lastSynced&&!status&&(
-            <span style={{fontSize:"10px",color:"#334155",fontFamily:"monospace",whiteSpace:"nowrap"}}>
-              ⟳ {syncAgo}
-            </span>
-          )}
           <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();}} style={{...btn(notionMode?"#1a2744":"#1e293b",notionMode?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 10px"}}>
             {notionMode?"🔗 Live":"🔗 Notion"}
           </button>
