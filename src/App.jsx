@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── NOTION CONFIG ────────────────────────────────────────────────────────────
 // Credentials live in Vercel environment variables — never hardcoded
@@ -416,12 +416,31 @@ function AddCarModal({ onClose, onAdd, existingVINs }) {
       <div style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:"12px",width:"100%",maxWidth:"540px",padding:"20px",boxShadow:"0 30px 80px rgba(0,0,0,0.9)",margin:"auto"}}>
         <div style={{fontSize:"20px",fontWeight:800,color:"#f1f5f9",fontFamily:"'DM Sans',sans-serif",marginBottom:"16px"}}>Add New Vehicle</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:"10px",marginBottom:"14px"}}>
-          {[["Stock No","stockNo"],["Year","year"],["Make","make"],["Model","model"],["Miles","miles"],["ACV","acv"]].map(([l,k])=>(
-            <div key={k} style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-              <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{l}</label>
-              <input value={form[k]||""} onChange={e=>set(k,e.target.value)} style={input()}/>
-            </div>
-          ))}
+          {/* Static fields — avoids re-render focus loss caused by .map() creating new components */}
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Stock No</label>
+            <input value={form.stockNo||""} onChange={e=>set("stockNo",e.target.value)} style={input()}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Year</label>
+            <input value={form.year||""} onChange={e=>set("year",e.target.value)} style={input()}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Make</label>
+            <input value={form.make||""} onChange={e=>set("make",e.target.value)} style={input()}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Model</label>
+            <input value={form.model||""} onChange={e=>set("model",e.target.value)} style={input()}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Miles</label>
+            <input value={form.miles||""} onChange={e=>set("miles",e.target.value)} style={input()}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>ACV</label>
+            <input value={form.acv||""} onChange={e=>set("acv",e.target.value)} style={input()}/>
+          </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px",gridColumn:"1 / -1"}}>
             <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>VIN</label>
             <input value={form.vin||""} onChange={e=>set("vin",e.target.value)}
@@ -678,7 +697,20 @@ export default function ReconDashboard() {
     setCars(cs=>cs.map(c=>c.id===updated.id?updated:c));
     if(notionMode) saveNotion(updated);
   };
-  const handleAdd    = car  => { setCars(cs=>[...cs,car]); if(notionMode) saveNotion(car); };
+  const handleAdd = async car => {
+    setCars(cs=>[...cs,car]);
+    if(notionMode) {
+      try {
+        // Create in Notion and get back the real UUID, then update local state
+        const data = await notionFetch("/pages","POST",{parent:{database_id:NOTION_DB_ID},properties:carToNotion(car)});
+        if(data.id) {
+          const notionId = data.id;
+          setCars(cs=>cs.map(c=>c.id===car.id?{...c,id:notionId}:c));
+          toast("✓ Added to Notion");
+        }
+      } catch(e) { toast(`❌ Add failed: ${e.message}`); }
+    }
+  };
   const handleDelete = id   => {
     setCars(cs=>cs.filter(c=>c.id!==id));
     if(notionMode) notionFetch(`/pages/${id}`,"PATCH",{archived:true}).catch(()=>{});
