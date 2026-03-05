@@ -523,14 +523,30 @@ function AddCarModal({ onClose, onAdd, existingVINs }) {
 }
 
 // ─── KANBAN CARD ─────────────────────────────────────────────────────────────
-function KanbanCard({ car, stage, onCarClick, isDupVIN }) {
+function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging, isGhost }) {
   const days  = daysSince(car.acquiredDate);
   const badge = t2lBadge(days);
   const tags  = getIssueTags(car);
+  if (isGhost) return (
+    <div style={{height:"60px",borderRadius:"8px",border:"2px dashed #334155",background:"#0a0f1a",opacity:0.5}}/>
+  );
   return (
-    <div onClick={()=>onCarClick(car)}
-      style={{background:"#0f172a",border:isDupVIN?"1px solid #ea580c":"1px solid #1e293b",borderLeft:`3px solid ${isDupVIN?"#ea580c":stage.accent}`,borderRadius:"8px",padding:"10px",cursor:"pointer",transition:"background 0.12s"}}
-      onMouseEnter={e=>e.currentTarget.style.background="#1e293b"}
+    <div
+      draggable
+      onDragStart={e => { onDragStart(e, car); }}
+      onClick={()=>{ if(!isDragging) onCarClick(car); }}
+      style={{
+        background:"#0f172a",
+        border:isDupVIN?"1px solid #ea580c":"1px solid #1e293b",
+        borderLeft:`3px solid ${isDupVIN?"#ea580c":stage.accent}`,
+        borderRadius:"8px",padding:"10px",
+        cursor:"grab",
+        opacity: isDragging ? 0.35 : 1,
+        transform: isDragging ? "scale(0.97)" : "scale(1)",
+        transition:"background 0.12s, opacity 0.15s, transform 0.15s",
+        boxShadow: isDragging ? "none" : undefined,
+      }}
+      onMouseEnter={e=>{ if(!isDragging) e.currentTarget.style.background="#1e293b"; }}
       onMouseLeave={e=>e.currentTarget.style.background="#0f172a"}>
       <div style={{fontSize:"13px",fontWeight:700,color:"#f1f5f9",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2"}}>{car.year} {car.make} {car.model}</div>
       <div style={{fontSize:"11px",color:"#475569",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
@@ -541,7 +557,6 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN }) {
         </span>
         <span style={{background:badge.bg,color:badge.fg,fontSize:"10px",fontWeight:700,fontFamily:"monospace",padding:"2px 6px",borderRadius:"4px"}}>{badge.label}</span>
       </div>
-      {/* Issue tags on card */}
       {tags.length>0&&(
         <div style={{display:"flex",flexWrap:"wrap",gap:"3px",marginTop:"4px"}}>
           {tags.map((t,i)=>(
@@ -597,32 +612,94 @@ function useDragScroll() {
 }
 
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
-function KanbanView({ cars, onCarClick, dupVINs }) {
+function KanbanView({ cars, onCarClick, dupVINs, onStageChange }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
   const drag = useDragScroll();
-  // Wrap onCarClick to ignore drag-ends
-  const handleCardClick = car => { if (!drag.moved.current) onCarClick(car); };
+
+  const [draggingId, setDraggingId]   = useState(null);
+  const [overStage,  setOverStage]    = useState(null);
+
+  const handleDragStart = (e, car) => {
+    setDraggingId(car.id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("carId", car.id);
+    // Transparent drag image so we use our own visual
+    const ghost = document.createElement("div");
+    ghost.style.cssText = "position:fixed;top:-999px;left:-999px;width:180px;padding:10px;background:#1e293b;border-radius:8px;color:#f1f5f9;font-size:12px;font-weight:700;";
+    ghost.textContent = `${car.year} ${car.make} ${car.model}`;
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 90, 20);
+    setTimeout(() => document.body.removeChild(ghost), 0);
+  };
+  const handleDragEnd = () => {
+    setDraggingId(null);
+    setOverStage(null);
+  };
+  const handleDragOver = (e, stageId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setOverStage(stageId);
+  };
+  const handleDrop = (e, stageId) => {
+    e.preventDefault();
+    const carId = e.dataTransfer.getData("carId");
+    if (carId) onStageChange(carId, stageId);
+    setDraggingId(null);
+    setOverStage(null);
+  };
+
   return (
     <div>
       <div ref={drag.ref} onMouseDown={drag.onMouseDown} onMouseMove={drag.onMouseMove} onMouseUp={drag.onMouseUp} onMouseLeave={drag.onMouseLeave}
-        style={{display:"flex",gap:"10px",overflowX:"auto",padding:"4px 0 16px",minHeight:"400px",cursor:"grab",scrollbarWidth:"thin"}}>
+        style={{display:"flex",gap:"10px",overflowX:"auto",padding:"4px 0 16px",minHeight:"400px",cursor:draggingId?"default":"grab",scrollbarWidth:"thin"}}>
         {PIPELINE_STAGES.map(stage=>{
           const col = pipelineCars.filter(c=>c.stage===stage.id);
+          const isOver = overStage===stage.id;
           return (
-            <div key={stage.id} style={{minWidth:"190px",width:"190px",flexShrink:0}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",background:stage.color+"44",borderRadius:"8px 8px 0 0",borderBottom:`2px solid ${stage.accent}`,marginBottom:"8px"}}>
+            <div key={stage.id} style={{minWidth:"190px",width:"190px",flexShrink:0,transition:"transform 0.15s"}}
+              onDragOver={e=>handleDragOver(e,stage.id)}
+              onDragLeave={()=>setOverStage(null)}
+              onDrop={e=>handleDrop(e,stage.id)}>
+              <div style={{
+                display:"flex",justifyContent:"space-between",alignItems:"center",
+                padding:"7px 10px",
+                background: isOver ? stage.color+"99" : stage.color+"44",
+                borderRadius:"8px 8px 0 0",
+                borderBottom:`2px solid ${stage.accent}`,
+                marginBottom:"8px",
+                transition:"background 0.15s",
+                boxShadow: isOver ? `0 0 0 2px ${stage.accent}` : "none",
+              }}>
                 <span style={{fontSize:"10px",fontWeight:800,color:stage.accent,letterSpacing:"0.08em",textTransform:"uppercase"}}>{stage.label}</span>
                 <span style={{background:stage.accent+"33",color:stage.accent,borderRadius:"12px",fontSize:"11px",fontWeight:700,padding:"1px 6px"}}>{col.length}</span>
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
-                {col.map(car=><KanbanCard key={car.id} car={car} stage={stage} onCarClick={handleCardClick} isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}/>)}
-                {col.length===0&&<div style={{textAlign:"center",color:"#1e293b",fontSize:"12px",padding:"20px 0"}}>—</div>}
+              <div style={{
+                display:"flex",flexDirection:"column",gap:"7px",
+                minHeight:"60px",
+                borderRadius:"0 0 8px 8px",
+                padding: isOver ? "6px" : "0",
+                background: isOver ? stage.color+"22" : "transparent",
+                border: isOver ? `1px dashed ${stage.accent}88` : "1px solid transparent",
+                transition:"all 0.15s",
+              }}>
+                {col.map(car=>(
+                  <KanbanCard key={car.id} car={car} stage={stage}
+                    onCarClick={car=>{ if(!draggingId) onCarClick(car); }}
+                    isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}
+                    onDragStart={handleDragStart}
+                    isDragging={draggingId===car.id}
+                    isGhost={false}
+                  />
+                ))}
+                {isOver && draggingId && <KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false}/>}
+                {col.length===0&&!isOver&&<div style={{textAlign:"center",color:"#1e293b",fontSize:"12px",padding:"20px 0"}}>—</div>}
               </div>
             </div>
           );
         })}
       </div>
+      <style>{`[draggable]{-webkit-user-drag:element;} .drag-over{outline:2px solid #4ade80;}`}</style>
       {soldCars.length>0&&(
         <div style={{marginTop:"20px",borderTop:"1px solid #1e293b",paddingTop:"16px"}}>
           <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"12px"}}>
@@ -786,6 +863,17 @@ export default function ReconDashboard() {
     setCars(cs=>cs.filter(c=>c.id!==id));
     if(notionMode) notionFetch(`/pages/${id}`,"PATCH",{archived:true}).catch(()=>{});
   };
+  const handleStageChange = (carId, newStage) => {
+    setCars(cs=>cs.map(c=>{
+      if(c.id!==carId) return c;
+      const updated = {...c, stage:newStage};
+      if(newStage==="sold" && !updated.soldDate) updated.soldDate = new Date().toISOString().split("T")[0];
+      if(notionMode) saveNotion(updated);
+      // Fire confetti on sold
+      if(c.stage!=="sold" && newStage==="sold") setTimeout(()=>setConfetti(true),50);
+      return updated;
+    }));
+  };
 
   const activeCars = cars.filter(c=>{
     if(c.stage!=="sold") return true;
@@ -881,7 +969,7 @@ export default function ReconDashboard() {
         {loading
           ? <div style={{textAlign:"center",padding:"60px",color:"#334155",fontSize:"14px"}}>Loading from Notion…</div>
           : view==="kanban"
-            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs}/>
+            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange}/>
             : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs}/>
         }
       </div>
