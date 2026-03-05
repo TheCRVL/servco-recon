@@ -904,6 +904,7 @@ export default function ReconDashboard() {
           marginBottom:"36px",
           opacity: 0.95,
           filter:"drop-shadow(0 0 40px rgba(56,189,248,0.15))",
+          mixBlendMode:"screen",
         }}
       />
 
