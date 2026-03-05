@@ -220,6 +220,38 @@ function NoteThread({ notes, onAdd }) {
   );
 }
 
+// ─── MODAL FIELD COMPONENTS (defined outside modal to prevent focus loss) ────
+function ModalField({label, fkey, type="text", form, set}) {
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+      <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{label}</label>
+      <input type={type} value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)} style={input()}/>
+    </div>
+  );
+}
+function ModalSelect({label, fkey, options, form, set}) {
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+      <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{label}</label>
+      <select value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)} style={input()}>
+        {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+      </select>
+    </div>
+  );
+}
+function ModalExpField({label, fkey, form, set}) {
+  const expired = isExpired(form[fkey]);
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+      <label style={{fontSize:"10px",color:expired?"#f87171":"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+        {label}{expired?" ⚠ EXPIRED":""}
+      </label>
+      <input type="date" value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)}
+        style={{...input(),border:expired?"1px solid #dc2626":"1px solid #334155",color:expired?"#f87171":"#e2e8f0",background:expired?"#3f0e0e":"#1e293b"}}/>
+    </div>
+  );
+}
+
 // ─── CAR DETAIL MODAL ────────────────────────────────────────────────────────
 function CarModal({ car, onClose, onSave, onDelete, onSold }) {
   const [form, setForm]                   = useState({...car});
@@ -237,32 +269,10 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
     setRegSafetyWarn(false);
   };
 
-  const Field = ({label, fkey, type="text"}) => (
-    <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-      <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{label}</label>
-      <input type={type} value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)} style={input()}/>
-    </div>
-  );
-  const Select = ({label, fkey, options}) => (
-    <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-      <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{label}</label>
-      <select value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)} style={input()}>
-        {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
-      </select>
-    </div>
-  );
-  const ExpField = ({label, fkey}) => {
-    const expired = isExpired(form[fkey]);
-    return (
-      <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-        <label style={{fontSize:"10px",color:expired?"#f87171":"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
-          {label}{expired?" ⚠ EXPIRED":""}
-        </label>
-        <input type="date" value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)}
-          style={{...input(),border:expired?"1px solid #dc2626":"1px solid #334155",color:expired?"#f87171":"#e2e8f0",background:expired?"#3f0e0e":"#1e293b"}}/>
-      </div>
-    );
-  };
+  // Shorthand wrappers that pass form+set automatically
+  const Field    = (p) => <ModalField    {...p} form={form} set={set}/>;
+  const FSelect  = (p) => <ModalSelect   {...p} form={form} set={set}/>;
+  const ExpField = (p) => <ModalExpField {...p} form={form} set={set}/>;
 
   const days  = daysSince(form.acquiredDate);
   const badge = t2lBadge(days);
@@ -338,9 +348,9 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
           <Field label="Model" fkey="model"/>
           <Field label="Miles" fkey="miles"/>
           <Field label="ACV"   fkey="acv"/>
-          <Select label="Keys"        fkey="keys"       options={[{v:"1",l:"1 Key"},{v:"2",l:"2 Keys"}]}/>
-          <Select label="Retail/Whsl" fkey="rw"         options={[{v:"R",l:"Retail"},{v:"W",l:"Wholesale"}]}/>
-          <Select label="Title State" fkey="titleState" options={[{v:"HI",l:"Hawaii (HI)"},{v:"ML",l:"Mainland (ML)"}]}/>
+          <FSelect label="Keys"        fkey="keys"       options={[{v:"1",l:"1 Key"},{v:"2",l:"2 Keys"}]}/>
+          <FSelect label="Retail/Whsl" fkey="rw"         options={[{v:"R",l:"Retail"},{v:"W",l:"Wholesale"}]}/>
+          <FSelect label="Title State" fkey="titleState" options={[{v:"HI",l:"Hawaii (HI)"},{v:"ML",l:"Mainland (ML)"}]}/>
         </div>
 
         {/* Timeline */}
