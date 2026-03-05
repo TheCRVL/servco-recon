@@ -3,7 +3,13 @@ import { useState, useEffect, useRef } from "react";
 // ─── NOTION CONFIG ────────────────────────────────────────────────────────────
 const NOTION_TOKEN = "YOUR_NOTION_INTEGRATION_TOKEN";
 const NOTION_DB_ID = "YOUR_NOTION_DATABASE_ID";
-const PROXY        = "https://corsproxy.io/?url=";
+
+// Multiple CORS proxies — tried in order until one works
+const PROXIES = [
+  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+];
 
 // ─── PIPELINE STAGES ─────────────────────────────────────────────────────────
 const STAGES = [
@@ -126,13 +132,24 @@ const btn = (bg, border) => ({
 
 // ─── NOTION API ───────────────────────────────────────────────────────────────
 async function notionFetch(path, method="GET", body=null) {
-  const url = `${PROXY}${encodeURIComponent(`https://api.notion.com/v1${path}`)}`;
-  const res = await fetch(url, {
-    method,
-    headers:{"Authorization":`Bearer ${NOTION_TOKEN}`,"Notion-Version":"2022-06-28","Content-Type":"application/json"},
-    ...(body?{body:JSON.stringify(body)}:{})
-  });
-  return res.json();
+  const notionUrl = `https://api.notion.com/v1${path}`;
+  const headers = {
+    "Authorization": `Bearer ${NOTION_TOKEN}`,
+    "Notion-Version": "2022-06-28",
+    "Content-Type": "application/json"
+  };
+  const fetchOpts = { method, headers, ...(body ? {body:JSON.stringify(body)} : {}) };
+  let lastErr = "";
+  for (const makeProxy of PROXIES) {
+    try {
+      const res = await fetch(makeProxy(notionUrl), fetchOpts);
+      if (!res.ok) { lastErr = `HTTP ${res.status}`; continue; }
+      const data = await res.json();
+      if (data.object === "error") throw new Error(`Notion: ${data.message}`);
+      return data;
+    } catch(e) { lastErr = e.message; }
+  }
+  throw new Error(`All proxies failed — ${lastErr}`);
 }
 function carToNotion(car) {
   const rt = v => ({rich_text:[{text:{content:v||""}}]});
@@ -641,7 +658,7 @@ export default function ReconDashboard() {
         });
         setCars(mapped); toast(`✓ Loaded ${mapped.length} vehicles`);
       }
-    } catch { toast("Notion connection failed — using demo data"); }
+    } catch(e) { toast(`❌ ${e.message}`); }
     setLoading(false);
   };
 
@@ -650,7 +667,7 @@ export default function ReconDashboard() {
       if(car.id.length>10) await notionFetch(`/pages/${car.id}`,"PATCH",{properties:carToNotion(car)});
       else await notionFetch("/pages","POST",{parent:{database_id:NOTION_DB_ID},properties:carToNotion(car)});
       toast("✓ Saved to Notion");
-    } catch { toast("Save failed — check Notion config"); }
+    } catch(e) { toast(`❌ Save failed: ${e.message}`); }
   };
 
   const handleSave = updated => {
