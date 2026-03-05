@@ -528,13 +528,55 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN }) {
   );
 }
 
+// ─── DRAG SCROLL HOOK ────────────────────────────────────────────────────────
+function useDragScroll() {
+  const ref = useRef(null);
+  const dragging = useRef(false);
+  const startX   = useRef(0);
+  const scrollX  = useRef(0);
+  const moved    = useRef(false);
+
+  const onMouseDown = e => {
+    // Only left click, ignore clicks on interactive elements
+    if (e.button !== 0) return;
+    if (["INPUT","SELECT","BUTTON","TEXTAREA"].includes(e.target.tagName)) return;
+    dragging.current = true;
+    moved.current    = false;
+    startX.current   = e.pageX - ref.current.offsetLeft;
+    scrollX.current  = ref.current.scrollLeft;
+    ref.current.style.cursor = "grabbing";
+    ref.current.style.userSelect = "none";
+  };
+  const onMouseMove = e => {
+    if (!dragging.current) return;
+    const x    = e.pageX - ref.current.offsetLeft;
+    const walk = x - startX.current;
+    if (Math.abs(walk) > 4) moved.current = true;
+    ref.current.scrollLeft = scrollX.current - walk;
+  };
+  const onMouseUp = () => {
+    dragging.current = false;
+    if (ref.current) {
+      ref.current.style.cursor = "grab";
+      ref.current.style.userSelect = "";
+    }
+  };
+  // Returns props to spread onto the scroll container
+  // Also returns moved ref so child click handlers can ignore drag-ends
+  return { ref, moved, onMouseDown, onMouseMove, onMouseUp, onMouseLeave: onMouseUp };
+}
+
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
 function KanbanView({ cars, onCarClick, dupVINs }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
+  const drag = useDragScroll();
+  // Wrap onCarClick to ignore drag-ends
+  const handleCardClick = car => { if (!drag.moved.current) onCarClick(car); };
   return (
     <div>
-      <div style={{display:"flex",gap:"10px",overflowX:"auto",padding:"4px 0 16px",minHeight:"400px"}}>
+      <div ref={drag.ref} onMouseDown={drag.onMouseDown} onMouseMove={drag.onMouseMove} onMouseUp={drag.onMouseUp} onMouseLeave={drag.onMouseLeave}
+        style={{display:"flex",gap:"10px",overflowX:"auto",padding:"4px 0 16px",minHeight:"400px",cursor:"grab",scrollbarWidth:"thin"}}>
         {PIPELINE_STAGES.map(stage=>{
           const col = pipelineCars.filter(c=>c.stage===stage.id);
           return (
@@ -544,7 +586,7 @@ function KanbanView({ cars, onCarClick, dupVINs }) {
                 <span style={{background:stage.accent+"33",color:stage.accent,borderRadius:"12px",fontSize:"11px",fontWeight:700,padding:"1px 6px"}}>{col.length}</span>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
-                {col.map(car=><KanbanCard key={car.id} car={car} stage={stage} onCarClick={onCarClick} isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}/>)}
+                {col.map(car=><KanbanCard key={car.id} car={car} stage={stage} onCarClick={handleCardClick} isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}/>)}
                 {col.length===0&&<div style={{textAlign:"center",color:"#1e293b",fontSize:"12px",padding:"20px 0"}}>—</div>}
               </div>
             </div>
@@ -563,7 +605,7 @@ function KanbanView({ cars, onCarClick, dupVINs }) {
               const daysAgo = soldDaysAgo(car);
               const daysLeft = daysAgo!==null?60-daysAgo:null;
               return (
-                <div key={car.id} onClick={()=>onCarClick(car)}
+                <div key={car.id} onClick={()=>handleCardClick(car)}
                   style={{background:"#0f172a",border:"1px solid #1e293b",borderLeft:"3px solid #818cf8",borderRadius:"8px",padding:"10px",cursor:"pointer",width:"190px",transition:"background 0.12s"}}
                   onMouseEnter={e=>e.currentTarget.style.background="#1e293b"}
                   onMouseLeave={e=>e.currentTarget.style.background="#0f172a"}>
@@ -586,8 +628,10 @@ function TableView({ cars, onCarClick, dupVINs }) {
   const headers = ["Stock No","VIN","Year","Make","Model","Miles","ACV","R/W","Title","Keys","Issues","Payoff Sent","Title RCVD","Sent DMV","SPI Title","Reg Exp","SC Exp","In Svc","Svc Done","Body Shop","Detail","Photos","Frontline","Sold","T2L","Stage"];
   const dateFields = ["payoffSent","titleRcvd","sentDMV","spiTitle","regExp","scExp","inSvc","svcDone","bodyShop","detail","pics","frontline","soldDate"];
   const expiredFields = new Set(["regExp","scExp"]);
+  const drag = useDragScroll();
   return (
-    <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+    <div ref={drag.ref} onMouseDown={drag.onMouseDown} onMouseMove={drag.onMouseMove} onMouseUp={drag.onMouseUp} onMouseLeave={drag.onMouseLeave}
+      style={{overflowX:"auto",WebkitOverflowScrolling:"touch",cursor:"grab",scrollbarWidth:"thin"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px",minWidth:"900px"}}>
         <thead>
           <tr>{headers.map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",color:"#475569",fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",borderBottom:"1px solid #1e293b",whiteSpace:"nowrap"}}>{h}</th>)}</tr>
@@ -600,7 +644,7 @@ function TableView({ cars, onCarClick, dupVINs }) {
             const isD   = !!(car.vin&&dupVINs.has(car.vin.toUpperCase()));
             const tags  = getIssueTags(car);
             return (
-              <tr key={car.id} onClick={()=>onCarClick(car)}
+              <tr key={car.id} onClick={()=>{ if(!drag.moved.current) onCarClick(car); }}
                 style={{cursor:"pointer",background:i%2===0?"#0a0f1a":"#0c1120",borderBottom:"1px solid #0f172a"}}
                 onMouseEnter={e=>e.currentTarget.style.background="#1e293b"}
                 onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"#0a0f1a":"#0c1120"}>
