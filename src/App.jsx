@@ -331,7 +331,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
 
         {/* Core fields */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:"10px",marginBottom:"16px"}}>
-          <Field label="Stock No"   fkey="stockNo"/>
+          <ModalField label="Stock No" fkey="stockNo" form={form} set={set}/>
           <div style={{display:"flex",flexDirection:"column",gap:"4px",gridColumn:"span 2"}}>
             <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>VIN</label>
             <input value={form.vin||""} onChange={e=>set("vin",e.target.value)}
