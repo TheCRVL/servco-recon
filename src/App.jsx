@@ -654,7 +654,7 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
       }}
       onMouseEnter={e=>{ if(!isDragging) e.currentTarget.style.background=cardHover; }}
       onMouseLeave={e=>e.currentTarget.style.background=cardBg}>
-      <div style={{fontSize:"13px",fontWeight:700,color:dark?"#f1f5f9":"#1e293b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2"}}>{car.year} {car.make} {car.model}</div>
+      <div style={{fontSize:"13px",fontWeight:700,color:dark?"#f1f5f9":"#1e293b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2",textTransform:"uppercase"}}>{car.year} {car.make} {car.model}</div>
       <div style={{fontSize:"11px",color:dark?"#475569":"#94a3b8",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
       {car.acv&&<div style={{fontSize:"11px",color:dark?"#fbbf24":"#b45309",marginBottom:"4px",fontWeight:700}}>ACV {car.acv}</div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom: tags.length>0?"6px":"0"}}>
@@ -826,7 +826,7 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
                   style={{background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderLeft:"3px solid #818cf8",borderRadius:"8px",padding:"10px",cursor:"pointer",width:"190px",transition:"background 0.12s",boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.05)"}}
                   onMouseEnter={e=>e.currentTarget.style.background=dark?"#1e293b":"#f8fafc"}
                   onMouseLeave={e=>e.currentTarget.style.background=dark?"#0f172a":"#ffffff"}>
-                  <div style={{fontSize:"13px",fontWeight:700,color:dark?"#94a3b8":"#64748b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif"}}>{car.year} {car.make} {car.model}</div>
+                  <div style={{fontSize:"13px",fontWeight:700,color:dark?"#94a3b8":"#64748b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase"}}>{car.year} {car.make} {car.model}</div>
                   <div style={{fontSize:"11px",color:dark?"#334155":"#94a3b8",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
                   {car.acv&&<div style={{fontSize:"11px",color:dark?"#fbbf2466":"#d97706",marginBottom:"3px"}}>ACV {car.acv}</div>}
                   <div style={{fontSize:"10px",color:dark?"#4c1d95":"#7c3aed",fontWeight:700}}>{daysLeft!==null?`Purges in ${daysLeft}d`:"Sold"}</div>
@@ -870,8 +870,8 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
                   {car.vin||"—"}{isD?" ⚠":""}
                 </td>
                 <td style={{padding:"8px 10px",color:dark?"#cbd5e1":"#475569"}}>{car.year}</td>
-                <td style={{padding:"8px 10px",color:dark?"#e2e8f0":"#1e293b",fontWeight:600,whiteSpace:"nowrap"}}>{car.make}</td>
-                <td style={{padding:"8px 10px",color:dark?"#cbd5e1":"#475569",whiteSpace:"nowrap"}}>{car.model}</td>
+                <td style={{padding:"8px 10px",color:dark?"#e2e8f0":"#1e293b",fontWeight:600,whiteSpace:"nowrap",textTransform:"uppercase"}}>{car.make}</td>
+                <td style={{padding:"8px 10px",color:dark?"#cbd5e1":"#475569",whiteSpace:"nowrap",textTransform:"uppercase"}}>{car.model}</td>
                 <td style={{padding:"8px 10px",color:dark?"#94a3b8":"#64748b",textAlign:"right"}}>{car.miles}</td>
                 <td style={{padding:"8px 10px",color:dark?"#fbbf24":"#b45309",fontWeight:600,whiteSpace:"nowrap"}}>{car.acv||"—"}</td>
                 <td style={{padding:"8px 10px",color:car.rw==="R"?"#4ade80":"#fb923c",fontWeight:700}}>{car.rw}</td>
