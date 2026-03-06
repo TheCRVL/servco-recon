@@ -400,7 +400,7 @@ function ModalExpField({label, fkey, form, set, dark=false}) {
 }
 
 // ─── CAR DETAIL MODAL ────────────────────────────────────────────────────────
-function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
+function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark=false }) {
   const [form, setForm]                   = useState({...car});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -408,6 +408,132 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const [noteText, setNoteText]           = useState("");
   const [noteAuthor, setNoteAuthor]       = useState("");
   const [regSafetyWarn, setRegSafetyWarn] = useState(false);
+
+  // ── Tinder-style swipe (mobile-only) ──────────────────────────────────────
+  const isMobile        = useIsMobile();
+  const panelRef        = useRef(null);
+  const [swipeX,  setSwipeX]  = useState(0);
+  const [swipeY,  setSwipeY]  = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const [flyOff,  setFlyOff]  = useState(false);
+  const [showHint,setShowHint]= useState(false);
+  const onSwipeRef = useRef(onSwipeAdvance);
+  useEffect(()=>{ onSwipeRef.current = onSwipeAdvance; }, [onSwipeAdvance]);
+
+  const nextSwipeStage = isMobile ? getNextSwipeStage(car.stage) : null;
+  const swipeCfg       = nextSwipeStage ? (SWIPE_CFG[nextSwipeStage]||null) : null;
+  const swipeLabel     = nextSwipeStage
+    ? (car.stage==="detail" ? "Ready for Photos"
+    : car.stage==="photos"  ? "Photos Complete"
+    : `Move to ${STAGES.find(s=>s.id===nextSwipeStage)?.label||nextSwipeStage}`)
+    : "";
+
+  // Discovery hint — nudge animation on first open
+  useEffect(()=>{
+    if (!isMobile || !nextSwipeStage) return;
+    if (localStorage.getItem("swipeHintSeen")) return;
+    const tid = setTimeout(()=>{
+      setShowHint(true);
+      localStorage.setItem("swipeHintSeen","1");
+    }, 600);
+    return ()=>clearTimeout(tid);
+  }, []); // eslint-disable-line
+
+  // Touch gesture on the panel
+  useEffect(()=>{
+    if (!isMobile || !nextSwipeStage) return;
+    const el = panelRef.current;
+    if (!el) return;
+    const COMMIT_THRESH = window.innerWidth * 0.38;
+    const CANCEL_THRESH = window.innerWidth * 0.20;
+    const g = { active:false, startX:0, startY:0, intent:null, committed:false };
+
+    const onStart = e=>{
+      if (g.committed) return;
+      const t = e.touches[0];
+      g.startX=t.clientX; g.startY=t.clientY; g.intent=null; g.active=true;
+    };
+    const onMove = e=>{
+      if (!g.active || g.committed) return;
+      const t  = e.touches[0];
+      const dx = t.clientX - g.startX;
+      const dy = t.clientY - g.startY;
+      // Intent detection
+      if (!g.intent) {
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) g.intent="h";
+        else if (Math.abs(dy) > 8) { g.intent="v"; g.active=false; return; }
+        else return;
+      }
+      if (g.intent !== "h") return;
+      e.preventDefault();
+      // Right swipe ≥ 20% → cancel gesture
+      if (dx >= CANCEL_THRESH) { g.active=false; setSwipeX(0); setSwipeY(0); setSwiping(false); return; }
+      // Only track leftward motion
+      const lx = Math.max(-dx, 0); // leftward delta (positive)
+      const xOff = -lx;            // translateX (moves panel left)
+      const yOff = lx * 0.08;
+      const rot  = -(lx / window.innerWidth) * 12; // tilt
+      setSwipeX(xOff); setSwipeY(yOff); setSwiping(lx > 0);
+      if (panelRef.current) {
+        panelRef.current.style.transition = "none";
+        panelRef.current.style.transform  = `translateX(${xOff}px) translateY(${yOff}px) rotate(${rot}deg)`;
+      }
+    };
+    const onEnd = e=>{
+      if (!g.active && !g.intent) return;
+      g.active = false;
+      const t  = e.changedTouches[0];
+      const dx = g.startX - t.clientX; // positive = leftward
+      const el2 = panelRef.current;
+      if (dx >= COMMIT_THRESH && !g.committed) {
+        // Commit: fly off left
+        g.committed = true;
+        if (navigator.vibrate) navigator.vibrate(40);
+        if (el2) {
+          el2.style.transition = "transform 0.32s ease-in, opacity 0.32s ease-in";
+          el2.style.transform  = `translateX(-${window.innerWidth * 1.5}px) translateY(${dx*0.08}px) rotate(-18deg)`;
+          el2.style.opacity    = "0";
+        }
+        setFlyOff(true);
+        setTimeout(()=>{
+          onSwipeRef.current && onSwipeRef.current(car.id, car.stage);
+          onClose();
+        }, 320);
+      } else {
+        // Rubber-band back
+        if (el2) {
+          el2.style.transition = "transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275)";
+          el2.style.transform  = "";
+        }
+        setSwipeX(0); setSwipeY(0); setSwiping(false);
+      }
+    };
+
+    el.addEventListener("touchstart", onStart, {passive:true});
+    el.addEventListener("touchmove",  onMove,  {passive:false});
+    el.addEventListener("touchend",   onEnd,   {passive:true});
+    return ()=>{
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove",  onMove);
+      el.removeEventListener("touchend",   onEnd);
+    };
+  }, [isMobile, nextSwipeStage]); // eslint-disable-line
+
+  // Hint nudge animation keyframes (injected once)
+  const hintKeyframes = `
+    @keyframes swipeNudge {
+      0%   { transform: translateX(0)   rotate(0deg); }
+      30%  { transform: translateX(-40px) rotate(-4deg); }
+      60%  { transform: translateX(-20px) rotate(-2deg); }
+      80%  { transform: translateX(-35px) rotate(-3deg); }
+      100% { transform: translateX(0)   rotate(0deg); }
+    }
+  `;
+
+  // Overlay opacity driven by swipe progress
+  const swipeProgress = isMobile && nextSwipeStage
+    ? Math.min(Math.abs(swipeX) / (window.innerWidth * 0.38), 1)
+    : 0;
 
   // Auto-stage logic: when certain date fields are set, advance the stage intelligently
   const autoStage = (key, val, currentForm) => {
@@ -476,7 +602,50 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
       onClick={e=>e.target===e.currentTarget&&handleClose()}>
-      <div style={{background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderRadius:"12px",width:"100%",maxWidth:"740px",padding:"20px",boxShadow:dark?"0 30px 80px rgba(0,0,0,0.9)":"0 20px 60px rgba(0,0,0,0.15)",margin:"auto"}}>
+
+      {/* Swipe hint keyframes */}
+      {showHint && <style>{hintKeyframes}</style>}
+
+      {/* Full-bleed swipe overlay — shown behind the panel as it slides */}
+      {isMobile && nextSwipeStage && swipeCfg && (
+        <div style={{
+          position:"fixed",inset:0,zIndex:999,pointerEvents:"none",
+          background:swipeCfg.bg,
+          opacity: swipeProgress,
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"12px",
+          transition: swiping ? "none" : "opacity 0.3s",
+        }}>
+          <div style={{fontSize:"56px",lineHeight:1}}>{swipeCfg.icon}</div>
+          <div style={{fontSize:"18px",fontWeight:800,color:swipeCfg.text,letterSpacing:"0.04em",textAlign:"center",padding:"0 24px"}}>
+            {swipeLabel}
+          </div>
+          <div style={{fontSize:"12px",color:swipeCfg.text,opacity:0.7,fontWeight:600}}>Release to confirm</div>
+        </div>
+      )}
+
+      <div ref={panelRef}
+        style={{
+          background:dark?"#0f172a":"#ffffff",
+          border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,
+          borderRadius:"12px",width:"100%",maxWidth:"740px",padding:"20px",
+          boxShadow:dark?"0 30px 80px rgba(0,0,0,0.9)":"0 20px 60px rgba(0,0,0,0.15)",
+          margin:"auto",
+          position:"relative",zIndex:1000,
+          willChange:"transform",
+          animation: showHint ? "swipeNudge 1.2s ease-in-out 0.1s both" : "none",
+        }}>
+
+        {/* "Swipe to advance" discovery hint label */}
+        {showHint && nextSwipeStage && (
+          <div style={{
+            position:"absolute",top:"12px",left:"50%",transform:"translateX(-50%)",
+            background:"rgba(0,0,0,0.75)",color:"#f1f5f9",fontSize:"11px",fontWeight:700,
+            padding:"4px 12px",borderRadius:"20px",whiteSpace:"nowrap",pointerEvents:"none",
+            zIndex:10,letterSpacing:"0.05em",
+          }}>
+            👈 Swipe left to advance stage
+          </div>
+        )}
 
         {/* Header */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"14px",gap:"10px"}}>
@@ -893,167 +1062,9 @@ function useDragScroll() {
   return { ref, moved, onMouseDown, onMouseMove, onMouseUp, onMouseLeave: onMouseUp };
 }
 
-// ─── SWIPEABLE CARD (mobile-only) ────────────────────────────────────────────
-function SwipeableCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging, isGhost, dark, onConfirmAdvance }) {
-  const nextStageId  = getNextSwipeStage(car.stage);
-  const nextStageCfg = STAGES.find(s=>s.id===nextStageId);
-  const swipeCfg     = SWIPE_CFG[nextStageId] || null;
-
-  // Stable refs to latest props — avoid stale closures inside the effect
-  const onConfirmRef = useRef(onConfirmAdvance);
-  const carRef       = useRef(car);
-  useEffect(()=>{ onConfirmRef.current = onConfirmAdvance; }, [onConfirmAdvance]);
-  useEffect(()=>{ carRef.current = car; }, [car]);
-
-  // Mutable gesture state lives in a ref so event handlers always see fresh values
-  const g = useRef({active:false,startX:0,startY:0,intent:null,snapped:false,exiting:false,snapStartX:0}).current;
-
-  // React state drives the visual
-  const [swipeX,  setSwipeX]  = useState(0);
-  const [snapped, setSnapped] = useState(false);
-  const [exiting, setExiting] = useState(false);
-  const cardEl = useRef(null);
-
-  useEffect(()=>{
-    const el = cardEl.current;
-    if (!el || !nextStageId) return;
-
-    const w           = el.offsetWidth || 190;
-    const SNAP_THRESH = w * 0.60;  // 60% of card width to trigger snap
-    const SNAP_LOC    = w * 0.65;  // card locks at 65% left so 35% remains visible
-
-    const doReset = ()=>{
-      g.active=false; g.intent=null; g.snapped=false; g.exiting=false;
-      setSwipeX(0); setSnapped(false); setExiting(false);
-    };
-    const doConfirm = ()=>{
-      if (g.exiting) return;
-      g.exiting=true; setExiting(true);
-      setSwipeX(window.innerWidth + w); // fly off left edge
-      if (navigator.vibrate) navigator.vibrate(40);
-      setTimeout(()=>{
-        onConfirmRef.current(carRef.current.id, carRef.current.stage);
-        g.active=false; g.intent=null; g.snapped=false; g.exiting=false;
-        setSwipeX(0); setSnapped(false); setExiting(false);
-      }, 300);
-    };
-
-    const onStart = e=>{
-      if (g.exiting) return;
-      const t=e.touches[0];
-      g.startX=t.clientX; g.startY=t.clientY; g.intent=null; g.active=true;
-      if (g.snapped) g.snapStartX=t.clientX;
-    };
-    const onMove = e=>{
-      if (g.exiting) return;
-      const t=e.touches[0];
-      const dx=t.clientX-g.startX, dy=t.clientY-g.startY;
-      if (g.snapped) {
-        // Snapped — detect rightward swipe to cancel
-        const ddx = t.clientX - g.snapStartX;
-        if (ddx>55) doReset();
-        return;
-      }
-      if (!g.active) return;
-      // Intent detection: first significant movement wins
-      if (!g.intent) {
-        if (Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>8) g.intent="h";
-        else if (Math.abs(dy)>8) { g.intent="v"; g.active=false; }
-        return;
-      }
-      if (g.intent!=="h") return;
-      e.preventDefault(); // block parent horizontal scroll once intent is confirmed
-      const leftDelta = g.startX - t.clientX;
-      if (leftDelta<=0) return;
-      setSwipeX(leftDelta);
-      if (leftDelta>=SNAP_THRESH && !g.snapped) {
-        g.snapped=true; g.active=false; g.snapStartX=t.clientX;
-        if (navigator.vibrate) navigator.vibrate(40);
-        setSwipeX(SNAP_LOC); setSnapped(true);
-      }
-    };
-    const onEnd = e=>{
-      if (g.exiting) return;
-      if (g.snapped) {
-        const ddx = e.changedTouches[0].clientX - g.snapStartX;
-        if (ddx>55) { doReset(); return; } // rightward swipe = cancel
-        doConfirm();                         // tap or leftward swipe = confirm
-        return;
-      }
-      doReset(); // short swipe: rubber-band back
-    };
-
-    el.addEventListener("touchstart", onStart, {passive:true});
-    el.addEventListener("touchmove",  onMove,  {passive:false}); // non-passive so we can preventDefault
-    el.addEventListener("touchend",   onEnd,   {passive:true});
-    return ()=>{
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove",  onMove);
-      el.removeEventListener("touchend",   onEnd);
-    };
-  }, [nextStageId]); // re-attach only when destination stage changes
-
-  // No next stage (sold) or ghost placeholder — render plain card
-  if (!nextStageId || isGhost) {
-    return <KanbanCard car={car} stage={stage} onCarClick={onCarClick}
-      isDupVIN={isDupVIN} onDragStart={onDragStart}
-      isDragging={isDragging} isGhost={isGhost} dark={dark}/>;
-  }
-
-  const cardWidth      = cardEl.current?.offsetWidth || 190;
-  const stripOpacity   = snapped ? 1 : Math.min(swipeX/(cardWidth*0.25), 1);
-  const showStripLabel = swipeX > cardWidth*0.25 || snapped;
-
-  return (
-    <div style={{position:"relative",borderRadius:"8px",overflow:"hidden"}}>
-      {/* Colored strip revealed as card slides left */}
-      <div style={{
-        position:"absolute",inset:0,
-        background:swipeCfg?.bg||"#1e293b",
-        display:"flex",alignItems:"center",
-        justifyContent:snapped?"center":"flex-end",
-        paddingRight:snapped?0:"14px",
-        opacity:stripOpacity,
-        transition:snapped?"opacity 0.2s":"none",
-      }}>
-        {snapped ? (
-          <div style={{textAlign:"center",padding:"0 10px"}}>
-            <div style={{fontSize:"12px",color:swipeCfg?.text||"#f1f5f9",fontWeight:700,lineHeight:1.4,marginBottom:"6px"}}>
-              {getSwipeConfirmText(car.stage)}
-            </div>
-            <div style={{display:"flex",gap:"12px",justifyContent:"center"}}>
-              <span style={{fontSize:"11px",color:"#4ade80",fontWeight:800}}>← yes</span>
-              <span style={{fontSize:"11px",color:"#f87171",fontWeight:800}}>no →</span>
-            </div>
-          </div>
-        ) : showStripLabel&&(
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px"}}>
-            <span style={{fontSize:"20px"}}>{swipeCfg?.icon}</span>
-            <span style={{fontSize:"9px",color:swipeCfg?.text||"#94a3b8",fontWeight:800,letterSpacing:"0.1em",textTransform:"uppercase"}}>{nextStageCfg?.label}</span>
-          </div>
-        )}
-      </div>
-
-      {/* The card — slides left, revealing strip behind it */}
-      <div ref={cardEl} style={{
-        position:"relative",
-        transform:`translateX(-${swipeX}px)`,
-        transition:(snapped||exiting)?"transform 0.22s ease-out":"none",
-        willChange:"transform",
-        boxShadow:swipeX>0?"4px 0 20px rgba(0,0,0,0.28)":"none",
-      }}>
-        <KanbanCard car={car} stage={stage}
-          onCarClick={c=>{ if(!snapped&&!exiting) onCarClick(c); }}
-          isDupVIN={isDupVIN} onDragStart={onDragStart}
-          isDragging={isDragging} isGhost={false} dark={dark}/>
-      </div>
-    </div>
-  );
-}
 
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
-function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onSwipeAdvance, dark=false }) {
-  const isMobile     = useIsMobile();
+function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
   const drag = useDragScroll();
@@ -1124,20 +1135,16 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onSwipeAdvance, 
                 border: isOver ? `1px dashed ${stage.accent}88` : "1px solid transparent",
                 transition:"all 0.15s",
               }}>
-                {col.map(car=>{
-                  const shared = {
-                    car, stage,
-                    onCarClick: c=>{ if(!draggingId) onCarClick(c); },
-                    isDupVIN: !!(car.vin&&dupVINs.has(car.vin.toUpperCase())),
-                    onDragStart: handleDragStart,
-                    isDragging: draggingId===car.id,
-                    isGhost: false,
-                    dark,
-                  };
-                  return isMobile
-                    ? <SwipeableCard key={car.id} {...shared} onConfirmAdvance={onSwipeAdvance}/>
-                    : <KanbanCard    key={car.id} {...shared}/>;
-                })}
+                {col.map(car=>(
+                  <KanbanCard key={car.id}
+                    car={car} stage={stage}
+                    onCarClick={c=>{ if(!draggingId) onCarClick(c); }}
+                    isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}
+                    onDragStart={handleDragStart}
+                    isDragging={draggingId===car.id}
+                    isGhost={false}
+                    dark={dark}/>
+                ))}
                 {isOver && draggingId && <KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false} dark={dark}/>}
                 {col.length===0&&!isOver&&<div style={{textAlign:"center",color:dark?"#1e293b":"#cbd5e1",fontSize:"12px",padding:"20px 0"}}>—</div>}
               </div>
@@ -1843,12 +1850,12 @@ export default function ReconDashboard() {
         {loading
           ? <div style={{textAlign:"center",padding:"60px",color:dark?"#334155":"#94a3b8",fontSize:"14px"}}>Loading from Notion…</div>
           : view==="kanban"
-            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onSwipeAdvance={handleSwipeAdvance} dark={dark}/>
+            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} dark={dark}/>
             : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
         }
       </div>
 
-      {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete} dark={dark}/>}
+      {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete} onSwipeAdvance={handleSwipeAdvance} dark={dark}/>}
       {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))} dark={dark}/>}
       {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} onClose={()=>setShowSettings(false)}/>}
     </div>
