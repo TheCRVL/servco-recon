@@ -598,8 +598,8 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
         <div style={{borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"14px"}}>
           <NoteThread notes={form.notes||[]} onAdd={note=>setForm(f=>({...f,notes:[...(f.notes||[]),note]}))} dark={dark}/></div>
 
-        </div>{/* end main tab inner wrapper */}
-        </div>){/* end tab conditional */}
+        </div>
+        )}
 
         {/* Actions */}
         {confirmDelete ? (
