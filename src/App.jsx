@@ -9,16 +9,16 @@ const NOTION_DB_ID = import.meta.env.VITE_NOTION_DB_ID || "";
 
 // ─── PIPELINE STAGES ─────────────────────────────────────────────────────────
 const STAGES = [
-  { id: "fresh",       label: "Fresh",        color: "#1e3a5f", accent: "#38bdf8" },
-  { id: "trade_hold",  label: "Trade Hold",   color: "#991b1b", accent: "#f87171" },
-  { id: "title_work",  label: "Title Work",   color: "#6d28d9", accent: "#a78bfa" },
-  { id: "reg_safety",  label: "Reg / Safety", color: "#92400e", accent: "#fbbf24" },
-  { id: "service",     label: "In Service",   color: "#1e40af", accent: "#60a5fa" },
-  { id: "body_shop",   label: "Body Shop",    color: "#0e7490", accent: "#22d3ee" },
-  { id: "detail",      label: "Detail",       color: "#065f46", accent: "#34d399" },
-  { id: "photos",      label: "Photos",       color: "#0f4c35", accent: "#6ee7b7" },
-  { id: "frontline",   label: "Frontline ✓",  color: "#14532d", accent: "#4ade80" },
-  { id: "sold",        label: "Sold 🏁",       color: "#1e1e2e", accent: "#818cf8" },
+  { id: "fresh",       label: "Fresh",        color: "#dbeafe", accent: "#1d4ed8", dark: "#1e3a5f", darkAccent: "#38bdf8" },
+  { id: "trade_hold",  label: "Trade Hold",   color: "#fee2e2", accent: "#b91c1c", dark: "#991b1b", darkAccent: "#f87171" },
+  { id: "title_work",  label: "Title Work",   color: "#ede9fe", accent: "#6d28d9", dark: "#6d28d9", darkAccent: "#a78bfa" },
+  { id: "reg_safety",  label: "Reg / Safety", color: "#fef3c7", accent: "#b45309", dark: "#92400e", darkAccent: "#fbbf24" },
+  { id: "service",     label: "In Service",   color: "#dbeafe", accent: "#1d4ed8", dark: "#1e40af", darkAccent: "#60a5fa" },
+  { id: "body_shop",   label: "Body Shop",    color: "#cffafe", accent: "#0e7490", dark: "#0e7490", darkAccent: "#22d3ee" },
+  { id: "detail",      label: "Detail",       color: "#d1fae5", accent: "#065f46", dark: "#065f46", darkAccent: "#34d399" },
+  { id: "photos",      label: "Photos",       color: "#ecfdf5", accent: "#059669", dark: "#0f4c35", darkAccent: "#6ee7b7" },
+  { id: "frontline",   label: "Frontline ✓",  color: "#dcfce7", accent: "#15803d", dark: "#14532d", darkAccent: "#4ade80" },
+  { id: "sold",        label: "Sold 🏁",       color: "#ede9fe", accent: "#6d28d9", dark: "#1e1e2e", darkAccent: "#818cf8" },
 ];
 const PIPELINE_STAGES = STAGES.filter(s => s.id !== "sold");
 
@@ -45,25 +45,36 @@ const getDupVINs  = cars => {
   cars.forEach(c=>{if(c.vin) seen[c.vin.toUpperCase()]=(seen[c.vin.toUpperCase()]||0)+1;});
   return new Set(Object.keys(seen).filter(v=>seen[v]>1));
 };
-const t2lBadge = days => {
-  if(days===null) return {bg:"#1e293b",fg:"#64748b",label:"—"};
-  if(days<=7)     return {bg:"#14532d",fg:"#4ade80",label:`${days}d`};
-  if(days<=14)    return {bg:"#713f12",fg:"#fbbf24",label:`${days}d`};
-  if(days<=21)    return {bg:"#7c2d12",fg:"#fb923c",label:`${days}d`};
-                  return {bg:"#7f1d1d",fg:"#f87171",label:`${days}d ⚠`};
+const t2lBadge = (days, dark=false) => {
+  if(days===null) return dark ? {bg:"#1e293b",fg:"#64748b",label:"—"} : {bg:"#f1f5f9",fg:"#94a3b8",label:"—"};
+  if(days<=7)     return dark ? {bg:"#14532d",fg:"#4ade80",label:`${days}d`} : {bg:"#dcfce7",fg:"#15803d",label:`${days}d`};
+  if(days<=14)    return dark ? {bg:"#713f12",fg:"#fbbf24",label:`${days}d`} : {bg:"#fef9c3",fg:"#b45309",label:`${days}d`};
+  if(days<=21)    return dark ? {bg:"#7c2d12",fg:"#fb923c",label:`${days}d`} : {bg:"#ffedd5",fg:"#c2410c",label:`${days}d`};
+                  return dark ? {bg:"#7f1d1d",fg:"#f87171",label:`${days}d ⚠`} : {bg:"#fee2e2",fg:"#b91c1c",label:`${days}d ⚠`};
 };
 
 // ─── ISSUE TAGS ───────────────────────────────────────────────────────────────
-function getIssueTags(car) {
+function getIssueTags(car, dark=false) {
   const tags = [];
-  if (isExpired(car.regExp))          tags.push({ label:"REG EXP",        color:"#dc2626", bg:"#3f0e0e" });
-  if (isExpired(car.scExp))           tags.push({ label:"SC EXP",         color:"#dc2626", bg:"#3f0e0e" });
-  if (!car.titleRcvd)                 tags.push({ label:"NO TITLE RCVD",  color:"#d97706", bg:"#2d1b00" });
-  if (!car.sentDMV && car.titleRcvd)  tags.push({ label:"DMV PENDING",    color:"#b45309", bg:"#2d1b00" });
-  if (!car.spiTitle && car.sentDMV)   tags.push({ label:"SPI PENDING",    color:"#7c3aed", bg:"#1e0a3c" });
-  if (car.keys === "1")               tags.push({ label:"1 KEY",          color:"#0369a1", bg:"#0c2340" });
-  if (daysSince(car.acquiredDate) > 21 && !["frontline","sold"].includes(car.stage))
-                                      tags.push({ label:"21d+ IN RECON",  color:"#b91c1c", bg:"#3f0e0e" });
+  if (dark) {
+    if (isExpired(car.regExp))          tags.push({ label:"REG EXP",        color:"#dc2626", bg:"#3f0e0e" });
+    if (isExpired(car.scExp))           tags.push({ label:"SC EXP",         color:"#dc2626", bg:"#3f0e0e" });
+    if (!car.titleRcvd)                 tags.push({ label:"NO TITLE RCVD",  color:"#d97706", bg:"#2d1b00" });
+    if (!car.sentDMV && car.titleRcvd)  tags.push({ label:"DMV PENDING",    color:"#b45309", bg:"#2d1b00" });
+    if (!car.spiTitle && car.sentDMV)   tags.push({ label:"SPI PENDING",    color:"#7c3aed", bg:"#1e0a3c" });
+    if (car.keys === "1")               tags.push({ label:"1 KEY",          color:"#0369a1", bg:"#0c2340" });
+    if (daysSince(car.acquiredDate) > 21 && !["frontline","sold"].includes(car.stage))
+                                        tags.push({ label:"21d+ IN RECON",  color:"#b91c1c", bg:"#3f0e0e" });
+  } else {
+    if (isExpired(car.regExp))          tags.push({ label:"REG EXP",        color:"#ffffff", bg:"#dc2626" });
+    if (isExpired(car.scExp))           tags.push({ label:"SC EXP",         color:"#ffffff", bg:"#dc2626" });
+    if (!car.titleRcvd)                 tags.push({ label:"NO TITLE RCVD",  color:"#ffffff", bg:"#d97706" });
+    if (!car.sentDMV && car.titleRcvd)  tags.push({ label:"DMV PENDING",    color:"#ffffff", bg:"#b45309" });
+    if (!car.spiTitle && car.sentDMV)   tags.push({ label:"SPI PENDING",    color:"#ffffff", bg:"#7c3aed" });
+    if (car.keys === "1")               tags.push({ label:"1 KEY",          color:"#ffffff", bg:"#0369a1" });
+    if (daysSince(car.acquiredDate) > 21 && !["frontline","sold"].includes(car.stage))
+                                        tags.push({ label:"21d+ IN RECON",  color:"#ffffff", bg:"#dc2626" });
+  }
   return tags;
 }
 
@@ -114,17 +125,35 @@ function Confetti({ active, onDone }) {
   return <canvas ref={canvasRef} style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:9999}} />;
 }
 
-// ─── STYLES ───────────────────────────────────────────────────────────────────
-const input = (extra={}) => ({
-  background:"#1e293b", border:"1px solid #334155", borderRadius:"6px",
-  color:"#e2e8f0", padding:"7px 10px", fontSize:"13px",
+const input = (extra={}, dark=false) => ({
+  background: dark ? "#1e293b" : "#f8fafc",
+  border: `1px solid ${dark ? "#334155" : "#e2e8f0"}`,
+  borderRadius:"6px",
+  color: dark ? "#e2e8f0" : "#1e293b",
+  padding:"7px 10px", fontSize:"13px",
   outline:"none", width:"100%", boxSizing:"border-box", fontFamily:"inherit", ...extra
 });
-const btn = (bg, border) => ({
-  background:bg, border:`1px solid ${border}`, color:"#e2e8f0",
-  borderRadius:"8px", padding:"8px 16px", cursor:"pointer",
-  fontSize:"13px", fontWeight:600, fontFamily:"inherit"
-});
+const btn = (bg, border, dark=false) => {
+  if (dark) return {
+    background:bg, border:`1px solid ${border}`,
+    color:"#e2e8f0",
+    borderRadius:"8px", padding:"8px 16px", cursor:"pointer",
+    fontSize:"13px", fontWeight:600, fontFamily:"inherit"
+  };
+  // Light mode: map dark bg/border values to light equivalents
+  const bgMap={"#14532d":"#15803d","#1e40af":"#2563eb","#1a2744":"#dbeafe",
+    "#1e293b":"#ffffff","#7f1d1d":"#fef2f2","#92400e":"#fffbeb","#15803d":"#15803d"};
+  const borderMap={"#334155":"#d1d5db","#4ade80":"#16a34a","#3b82f6":"#3b82f6",
+    "#dc2626":"#dc2626","#fbbf24":"#d97706"};
+  const mb=bgMap[bg]||bg, mbo=borderMap[border]||border;
+  const lightBgs=new Set(["#ffffff","#f8fafc","#fef2f2","#fffbeb","#dbeafe"]);
+  return {
+    background:mb, border:`1px solid ${mbo}`,
+    color: lightBgs.has(mb) ? "#1e293b" : "#ffffff",
+    borderRadius:"8px", padding:"8px 16px", cursor:"pointer",
+    fontSize:"13px", fontWeight:600, fontFamily:"inherit"
+  };
+};
 
 // ─── NOTION API ───────────────────────────────────────────────────────────────
 async function notionFetch(path, method="GET", body=null) {
@@ -167,11 +196,16 @@ function getStageDays(car) {
   if (!entry) return null;
   return daysSince(entry);
 }
-function stageTimeBadge(days) {
+function stageTimeBadge(days, dark=false) {
   if (days === null || days === undefined) return null;
-  if (days < 7)  return { bg:"#14532d", fg:"#4ade80", label:days+"d" };
-  if (days < 15) return { bg:"#713f12", fg:"#fbbf24", label:days+"d" };
-  return              { bg:"#450a0a", fg:"#f87171", label:days+"d ⚠" };
+  if (dark) {
+    if (days < 7)  return { bg:"#14532d", fg:"#4ade80", label:days+"d" };
+    if (days < 15) return { bg:"#713f12", fg:"#fbbf24", label:days+"d" };
+    return              { bg:"#450a0a", fg:"#f87171", label:days+"d ⚠" };
+  }
+  if (days < 7)  return { bg:"#dcfce7", fg:"#15803d", label:days+"d" };
+  if (days < 15) return { bg:"#fef9c3", fg:"#b45309", label:days+"d" };
+  return              { bg:"#fee2e2", fg:"#b91c1c", label:days+"d ⚠" };
 }
 function initStageTimes(car) {
   const t = {};
@@ -189,7 +223,7 @@ function initStageTimes(car) {
   return t;
 }
 
-function StatsBar({ cars }) {
+function StatsBar({ cars, dark=false }) {
   const frontline  = cars.filter(c=>c.stage==="frontline").length;
   const sold       = cars.filter(c=>c.stage==="sold").length;
   const stuck      = cars.filter(c=>daysSince(c.acquiredDate)>21&&!["frontline","sold"].includes(c.stage)).length;
@@ -199,89 +233,100 @@ function StatsBar({ cars }) {
   const Stat = ({label,value,color}) => (
     <div style={{textAlign:"center",padding:"0 20px"}}>
       <div style={{fontSize:"28px",fontWeight:900,color,fontFamily:"'DM Mono',monospace"}}>{value}</div>
-      <div style={{fontSize:"10px",color:"#475569",fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",marginTop:"3px"}}>{label}</div>
+      <div style={{fontSize:"10px",color:dark?"#475569":"#94a3b8",fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",marginTop:"3px"}}>{label}</div>
     </div>
   );
+  const divColor = dark ? "#1e293b" : "#e2e8f0";
   return (
-    <div style={{display:"flex",justifyContent:"center",alignItems:"center",background:"#0a0f1a",border:"1px solid #1e293b",borderRadius:"12px",padding:"16px",marginBottom:"20px",flexWrap:"wrap",gap:"4px"}}>
-      <Stat label="Total"         value={cars.length}              color="#94a3b8"/>
-      <div style={{width:"1px",height:"36px",background:"#1e293b"}}/>
-      <Stat label="Frontline"     value={frontline}                color="#4ade80"/>
-      <div style={{width:"1px",height:"36px",background:"#1e293b"}}/>
-      <Stat label="Sold"          value={sold}                     color="#818cf8"/>
-      <div style={{width:"1px",height:"36px",background:"#1e293b"}}/>
-      <Stat label="In Progress"   value={inProgress}               color="#60a5fa"/>
-      <div style={{width:"1px",height:"36px",background:"#1e293b"}}/>
-      <Stat label="Stuck 21d+"    value={stuck}                    color="#f87171"/>
-      <div style={{width:"1px",height:"36px",background:"#1e293b"}}/>
-      <Stat label="Avg T2L"       value={avgT2L?`${avgT2L}d`:"—"} color="#fbbf24"/>
+    <div style={{display:"flex",justifyContent:"center",alignItems:"center",background:dark?"#0a0f1a":"#ffffff",border:`1px solid ${divColor}`,borderRadius:"12px",padding:"16px",marginBottom:"20px",flexWrap:"wrap",gap:"4px",boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.06)"}}>
+      <Stat label="Total"         value={cars.length}              color={dark?"#94a3b8":"#64748b"}/>
+      <div style={{width:"1px",height:"36px",background:divColor}}/>
+      <Stat label="Frontline"     value={frontline}                color={dark?"#4ade80":"#15803d"}/>
+      <div style={{width:"1px",height:"36px",background:divColor}}/>
+      <Stat label="Sold"          value={sold}                     color={dark?"#818cf8":"#6d28d9"}/>
+      <div style={{width:"1px",height:"36px",background:divColor}}/>
+      <Stat label="In Progress"   value={inProgress}               color={dark?"#60a5fa":"#1d4ed8"}/>
+      <div style={{width:"1px",height:"36px",background:divColor}}/>
+      <Stat label="Stuck 21d+"    value={stuck}                    color={dark?"#f87171":"#dc2626"}/>
+      <div style={{width:"1px",height:"36px",background:divColor}}/>
+      <Stat label="Avg T2L"       value={avgT2L?`${avgT2L}d`:"—"} color={dark?"#fbbf24":"#b45309"}/>
     </div>
   );
 }
 
 // ─── NOTE THREAD ─────────────────────────────────────────────────────────────
-function NoteThread({ notes, onAdd }) {
+function NoteThread({ notes, onAdd, dark=false }) {
   const [text,setText]     = useState("");
   const [author,setAuthor] = useState("");
+  const bg = dark ? "#060b14" : "#f8fafc";
+  const border = dark ? "#1e293b" : "#e2e8f0";
+  const labelColor = dark ? "#64748b" : "#94a3b8";
+  const textColor = dark ? "#cbd5e1" : "#334155";
+  const authorColor = dark ? "#e2e8f0" : "#1e293b";
+  const emptyColor = dark ? "#334155" : "#cbd5e1";
   return (
     <div style={{marginTop:"12px"}}>
-      <div style={{fontSize:"10px",fontWeight:700,color:"#64748b",letterSpacing:"0.1em",marginBottom:"8px"}}>NOTES LOG</div>
+      <div style={{fontSize:"10px",fontWeight:700,color:dark?"#64748b":"#94a3b8",letterSpacing:"0.1em",marginBottom:"8px"}}>NOTES LOG</div>
       <div style={{display:"flex",flexDirection:"column",gap:"6px",maxHeight:"140px",overflowY:"auto",marginBottom:"10px"}}>
-        {notes.length===0 && <div style={{color:"#334155",fontSize:"12px",fontStyle:"italic"}}>No notes yet.</div>}
+        {notes.length===0 && <div style={{color:emptyColor,fontSize:"12px",fontStyle:"italic"}}>No notes yet.</div>}
         {notes.map((n,i)=>(
-          <div key={i} style={{background:"#060b14",border:"1px solid #1e293b",borderRadius:"6px",padding:"8px 10px"}}>
-            <div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"3px"}}>
-              <span style={{color:"#e2e8f0",fontWeight:600}}>{n.author}</span> · {fmtDate(n.date)}
+          <div key={i} style={{background:bg,border:`1px solid ${border}`,borderRadius:"6px",padding:"8px 10px"}}>
+            <div style={{fontSize:"11px",color:labelColor,marginBottom:"3px"}}>
+              <span style={{color:authorColor,fontWeight:600}}>{n.author}</span> · {fmtDate(n.date)}
             </div>
-            <div style={{fontSize:"13px",color:"#cbd5e1",lineHeight:"1.5"}}>{n.text}</div>
+            <div style={{fontSize:"13px",color:textColor,lineHeight:"1.5"}}>{n.text}</div>
           </div>
         ))}
       </div>
       <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
-        <input placeholder="Name" value={author} onChange={e=>setAuthor(e.target.value)} style={input({width:"90px",minWidth:"80px",flex:"0 0 90px"})}/>
+        <input placeholder="Name" value={author} onChange={e=>setAuthor(e.target.value)} style={input({width:"90px",minWidth:"80px",flex:"0 0 90px"},dark)}/>
         <input placeholder="Add a note…" value={text} onChange={e=>setText(e.target.value)}
           onKeyDown={e=>{if(e.key==="Enter"&&text&&author){onAdd({text,author,date:new Date().toISOString().split("T")[0]});setText("");}}}
-          style={input({flex:"1",minWidth:"120px"})}/>
-        <button onClick={()=>{if(text&&author){onAdd({text,author,date:new Date().toISOString().split("T")[0]});setText("");}}} style={btn("#1e40af","#3b82f6")}>Add</button>
+          style={input({flex:"1",minWidth:"120px"},dark)}/>
+        <button onClick={()=>{if(text&&author){onAdd({text,author,date:new Date().toISOString().split("T")[0]});setText("");}}} style={{background:"#1e40af",border:"1px solid #3b82f6",color:"#fff",borderRadius:"8px",padding:"8px 16px",cursor:"pointer",fontSize:"13px",fontWeight:600,fontFamily:"inherit"}}>Add</button>
       </div>
     </div>
   );
 }
 
 // ─── MODAL FIELD COMPONENTS (defined outside modal to prevent focus loss) ────
-function ModalField({label, fkey, type="text", form, set}) {
+function ModalField({label, fkey, type="text", form, set, dark=false}) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-      <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{label}</label>
-      <input type={type} value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)} style={input()}/>
+      <label style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{label}</label>
+      <input type={type} value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)} style={input({},dark)}/>
     </div>
   );
 }
-function ModalSelect({label, fkey, options, form, set}) {
+function ModalSelect({label, fkey, options, form, set, dark=false}) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-      <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{label}</label>
-      <select value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)} style={input()}>
+      <label style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{label}</label>
+      <select value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)} style={input({},dark)}>
         {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     </div>
   );
 }
-function ModalExpField({label, fkey, form, set}) {
+function ModalExpField({label, fkey, form, set, dark=false}) {
   const expired = isExpired(form[fkey]);
   return (
     <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-      <label style={{fontSize:"10px",color:expired?"#f87171":"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+      <label style={{fontSize:"10px",color:expired?"#dc2626":dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
         {label}{expired?" ⚠ EXPIRED":""}
       </label>
       <input type="date" value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)}
-        style={{...input(),border:expired?"1px solid #dc2626":"1px solid #334155",color:expired?"#f87171":"#e2e8f0",background:expired?"#3f0e0e":"#1e293b"}}/>
+        style={{...input({},dark),
+          border:expired?"1px solid #dc2626":dark?"1px solid #334155":"1px solid #e2e8f0",
+          color:expired?"#dc2626":dark?"#e2e8f0":"#1e293b",
+          background:expired?(dark?"#3f0e0e":"#fee2e2"):dark?"#1e293b":"#f8fafc"
+        }}/>
     </div>
   );
 }
 
 // ─── CAR DETAIL MODAL ────────────────────────────────────────────────────────
-function CarModal({ car, onClose, onSave, onDelete, onSold }) {
+function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const [form, setForm]                   = useState({...car});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [regSafetyWarn, setRegSafetyWarn] = useState(false);
@@ -330,19 +375,19 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
   // Use ModalField/ModalSelect/ModalExpField directly with form+set props
 
   const days  = daysSince(form.acquiredDate);
-  const badge = t2lBadge(days);
-  const tags  = getIssueTags(form);
+  const badge = t2lBadge(days, dark);
+  const tags  = getIssueTags(form, dark);
 
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
       onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:"12px",width:"100%",maxWidth:"740px",padding:"20px",boxShadow:"0 30px 80px rgba(0,0,0,0.9)",margin:"auto"}}>
+      <div style={{background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderRadius:"12px",width:"100%",maxWidth:"740px",padding:"20px",boxShadow:dark?"0 30px 80px rgba(0,0,0,0.9)":"0 20px 60px rgba(0,0,0,0.15)",margin:"auto"}}>
 
         {/* Header */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"14px",gap:"10px"}}>
           <div style={{minWidth:0}}>
-            <div style={{fontSize:"20px",fontWeight:800,color:"#f1f5f9",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2"}}>{form.year} {form.make} {form.model}</div>
-            <div style={{fontSize:"11px",color:"#64748b",marginTop:"3px",fontFamily:"monospace",wordBreak:"break-all"}}>#{form.stockNo}{form.vin?` · ${form.vin}`:""} · {form.miles} mi</div>
+            <div style={{fontSize:"20px",fontWeight:800,color:dark?"#f1f5f9":"#1e293b",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2"}}>{form.year} {form.make} {form.model}</div>
+            <div style={{fontSize:"11px",color:dark?"#64748b":"#94a3b8",marginTop:"3px",fontFamily:"monospace",wordBreak:"break-all"}}>#{form.stockNo}{form.vin?` · ${form.vin}`:""} · {form.miles} mi</div>
           </div>
           <div style={{display:"flex",gap:"6px",alignItems:"center",flexShrink:0}}>
             <span style={{background:badge.bg,color:badge.fg,fontSize:"11px",fontWeight:700,fontFamily:"monospace",padding:"3px 8px",borderRadius:"5px",whiteSpace:"nowrap"}}>T2L {badge.label}</span>
@@ -363,13 +408,13 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
 
         {/* Stage */}
         <div style={{marginBottom:"16px"}}>
-          <div style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",marginBottom:"8px"}}>STAGE</div>
+          <div style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",marginBottom:"8px"}}>STAGE</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:"5px"}}>
             {STAGES.map(st=>(
               <button key={st.id} onClick={()=>handleStageClick(st.id)} style={{
-                background:form.stage===st.id?st.color:"#1e293b",
-                color:form.stage===st.id?"#fff":"#64748b",
-                border:`1px solid ${form.stage===st.id?st.accent:"#334155"}`,
+                background:form.stage===st.id?st.color:(dark?"#1e293b":"#f1f5f9"),
+                color:form.stage===st.id?(dark?"#fff":st.accent):(dark?"#64748b":"#475569"),
+                border:`1px solid ${form.stage===st.id?st.accent:(dark?"#334155":"#e2e8f0")}`,
                 borderRadius:"6px",padding:"5px 10px",cursor:"pointer",
                 fontSize:"11px",fontWeight:600,transition:"all 0.12s"
               }}>{st.label}</button>
@@ -415,8 +460,8 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
         </div>
 
         {/* Timeline */}
-        <div style={{borderTop:"1px solid #1e293b",paddingTop:"14px",marginBottom:"14px"}}>
-          <div style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.1em",marginBottom:"10px"}}>TIMELINE</div>
+        <div style={{borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"14px",marginBottom:"14px"}}>
+          <div style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.1em",marginBottom:"10px"}}>TIMELINE</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:"10px"}}>
             <ModalField label="Acquired"      fkey="acquiredDate"  type="date" form={form} set={set}/>
             <ModalField label="Payoff Bank"   fkey="payoffBank" form={form} set={set}/>
@@ -437,25 +482,24 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
         </div>
 
         {/* Notes */}
-        <div style={{borderTop:"1px solid #1e293b",paddingTop:"14px"}}>
-          <NoteThread notes={form.notes||[]} onAdd={note=>setForm(f=>({...f,notes:[...(f.notes||[]),note]}))}/>
-        </div>
+        <div style={{borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"14px"}}>
+          <NoteThread notes={form.notes||[]} onAdd={note=>setForm(f=>({...f,notes:[...(f.notes||[]),note]}))} dark={dark}/></div>
 
         {/* Actions */}
         {confirmDelete ? (
-          <div style={{marginTop:"16px",background:"#3f0e0e",border:"1px solid #dc2626",borderRadius:"8px",padding:"12px 14px"}}>
-            <div style={{fontSize:"13px",color:"#fca5a5",fontWeight:600,marginBottom:"10px"}}>Delete <strong>{form.year} {form.make} {form.model}</strong> (#{form.stockNo})? This cannot be undone.</div>
+          <div style={{marginTop:"16px",background:dark?"#3f0e0e":"#fef2f2",border:`1px solid ${dark?"#dc2626":"#fca5a5"}`,borderRadius:"8px",padding:"12px 14px"}}>
+            <div style={{fontSize:"13px",color:dark?"#fca5a5":"#b91c1c",fontWeight:600,marginBottom:"10px"}}>Delete <strong>{form.year} {form.make} {form.model}</strong> (#{form.stockNo})? This cannot be undone.</div>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button onClick={()=>setConfirmDelete(false)} style={btn("#1e293b","#334155")}>Cancel</button>
-              <button onClick={()=>{onDelete(form.id);onClose();}} style={{...btn("#7f1d1d","#dc2626"),color:"#fca5a5"}}>Yes, Delete</button>
+              <button onClick={()=>setConfirmDelete(false)} style={btn("#1e293b","#334155",dark)}>Cancel</button>
+              <button onClick={()=>{onDelete(form.id);onClose();}} style={dark?{...btn("#7f1d1d","#dc2626",dark),color:"#fca5a5"}:{...btn("#7f1d1d","#dc2626",dark),background:"#dc2626",color:"#fff",border:"1px solid #dc2626"}}>Yes, Delete</button>
             </div>
           </div>
         ) : (
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"16px",flexWrap:"wrap",gap:"8px"}}>
-            <button onClick={()=>setConfirmDelete(true)} style={{...btn("#1e293b","#334155"),color:"#f87171",fontSize:"12px"}}>🗑 Delete</button>
+            <button onClick={()=>setConfirmDelete(true)} style={{...btn("#1e293b","#334155",dark),color:dark?"#f87171":"#dc2626",fontSize:"12px"}}>🗑 Delete</button>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button onClick={onClose} style={btn("#1e293b","#334155")}>Cancel</button>
-              <button onClick={()=>{onSave(form);onClose();}} style={btn("#15803d","#4ade80")}>Save Changes</button>
+              <button onClick={onClose} style={btn("#1e293b","#334155",dark)}>Cancel</button>
+              <button onClick={()=>{onSave(form);onClose();}} style={btn("#15803d","#4ade80",dark)}>Save Changes</button>
             </div>
           </div>
         )}
@@ -465,47 +509,51 @@ function CarModal({ car, onClose, onSave, onDelete, onSold }) {
 }
 
 // ─── ADD CAR MODAL ────────────────────────────────────────────────────────────
-function AddCarModal({ onClose, onAdd, existingVINs }) {
+function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
   const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:""};
   const [form,setForm] = useState(blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const vinDup = form.vin&&form.vin.length>5&&existingVINs.has(form.vin.toUpperCase());
+  const labelColor = dark?"#64748b":"#94a3b8";
+  const bg = dark?"#0f172a":"#ffffff";
+  const border = dark?"#1e293b":"#e2e8f0";
+  const titleColor = dark?"#f1f5f9":"#1e293b";
 
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
       onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:"12px",width:"100%",maxWidth:"540px",padding:"20px",boxShadow:"0 30px 80px rgba(0,0,0,0.9)",margin:"auto"}}>
-        <div style={{fontSize:"20px",fontWeight:800,color:"#f1f5f9",fontFamily:"'DM Sans',sans-serif",marginBottom:"16px"}}>Add New Vehicle</div>
+      <div style={{background:bg,border:`1px solid ${border}`,borderRadius:"12px",width:"100%",maxWidth:"540px",padding:"20px",boxShadow:dark?"0 30px 80px rgba(0,0,0,0.9)":"0 20px 60px rgba(0,0,0,0.15)",margin:"auto"}}>
+        <div style={{fontSize:"20px",fontWeight:800,color:titleColor,fontFamily:"'DM Sans',sans-serif",marginBottom:"16px"}}>Add New Vehicle</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:"10px",marginBottom:"14px"}}>
           {/* Static fields — avoids re-render focus loss caused by .map() creating new components */}
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Stock No</label>
-            <input value={form.stockNo||""} onChange={e=>set("stockNo",e.target.value)} style={input()}/>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Stock No</label>
+            <input value={form.stockNo||""} onChange={e=>set("stockNo",e.target.value)} style={input({},dark)}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Year</label>
-            <input value={form.year||""} onChange={e=>set("year",e.target.value)} style={input()}/>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Year</label>
+            <input value={form.year||""} onChange={e=>set("year",e.target.value)} style={input({},dark)}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Make</label>
-            <input value={form.make||""} onChange={e=>set("make",e.target.value)} style={input()}/>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Make</label>
+            <input value={form.make||""} onChange={e=>set("make",e.target.value)} style={input({},dark)}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Model</label>
-            <input value={form.model||""} onChange={e=>set("model",e.target.value)} style={input()}/>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Model</label>
+            <input value={form.model||""} onChange={e=>set("model",e.target.value)} style={input({},dark)}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Miles</label>
-            <input value={form.miles||""} onChange={e=>set("miles",e.target.value)} style={input()}/>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Miles</label>
+            <input value={form.miles||""} onChange={e=>set("miles",e.target.value)} style={input({},dark)}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>ACV</label>
-            <input value={form.acv||""} onChange={e=>set("acv",e.target.value)} style={input()}/>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>ACV</label>
+            <input value={form.acv||""} onChange={e=>set("acv",e.target.value)} style={input({},dark)}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px",gridColumn:"1 / -1"}}>
             <label style={{fontSize:"10px",color:"#f87171",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>VIN <span style={{color:"#f87171"}}>*</span></label>
             <input value={form.vin||""} onChange={e=>set("vin",e.target.value)}
-              style={{...input(),borderColor:(!form.vin||form.vin.length===0)?"#dc2626":form.vin.length!==17?"#ea580c":"#334155"}}
+              style={{...input({},dark),borderColor:(!form.vin||form.vin.length===0)?"#dc2626":form.vin.length!==17?"#ea580c":dark?"#334155":"#e2e8f0"}}
               placeholder="17-character VIN (required)"/>
             {(!form.vin||form.vin.length===0)&&(
               <div style={{fontSize:"11px",color:"#f87171",fontWeight:700,marginTop:"2px"}}>⚠ VIN is required</div>
@@ -521,41 +569,45 @@ function AddCarModal({ onClose, onAdd, existingVINs }) {
             )}
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Acquired</label>
-            <input type="date" value={form.acquiredDate} onChange={e=>set("acquiredDate",e.target.value)} style={input()}/>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Acquired</label>
+            <input type="date" value={form.acquiredDate} onChange={e=>set("acquiredDate",e.target.value)} style={input({},dark)}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Title State</label>
-            <select value={form.titleState} onChange={e=>set("titleState",e.target.value)} style={input()}>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Title State</label>
+            <select value={form.titleState} onChange={e=>set("titleState",e.target.value)} style={input({},dark)}>
               <option value="HI">Hawaii (HI)</option><option value="ML">Mainland (ML)</option>
             </select>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Keys</label>
-            <select value={form.keys} onChange={e=>set("keys",e.target.value)} style={input()}>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Keys</label>
+            <select value={form.keys} onChange={e=>set("keys",e.target.value)} style={input({},dark)}>
               <option value="1">1 Key</option><option value="2">2 Keys</option>
             </select>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Retail / Whsl</label>
-            <select value={form.rw} onChange={e=>set("rw",e.target.value)} style={input()}>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Retail / Whsl</label>
+            <select value={form.rw} onChange={e=>set("rw",e.target.value)} style={input({},dark)}>
               <option value="R">Retail</option><option value="W">Wholesale</option>
             </select>
           </div>
         </div>
         <div style={{marginBottom:"14px"}}>
-          <div style={{fontSize:"10px",color:"#64748b",fontWeight:700,letterSpacing:"0.08em",marginBottom:"8px"}}>INITIAL STAGE</div>
+          <div style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",marginBottom:"8px"}}>INITIAL STAGE</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:"5px"}}>
             {STAGES.map(s=>(
-              <button key={s.id} onClick={()=>set("stage",s.id)} style={{background:form.stage===s.id?s.color:"#1e293b",color:form.stage===s.id?"#fff":"#64748b",border:`1px solid ${form.stage===s.id?s.accent:"#334155"}`,borderRadius:"6px",padding:"5px 10px",cursor:"pointer",fontSize:"11px",fontWeight:600}}>
+              <button key={s.id} onClick={()=>set("stage",s.id)} style={{
+                background:form.stage===s.id?s.color:(dark?"#1e293b":"#f1f5f9"),
+                color:form.stage===s.id?(dark?"#fff":s.accent):(dark?"#64748b":"#475569"),
+                border:`1px solid ${form.stage===s.id?s.accent:(dark?"#334155":"#e2e8f0")}`,
+                borderRadius:"6px",padding:"5px 10px",cursor:"pointer",fontSize:"11px",fontWeight:600}}>
                 {s.label}
               </button>
             ))}
           </div>
         </div>
         <div style={{display:"flex",justifyContent:"flex-end",gap:"8px",flexWrap:"wrap"}}>
-          <button onClick={onClose} style={btn("#1e293b","#334155")}>Cancel</button>
-          <button onClick={()=>{if(form.vin&&form.vin.length===17){onAdd(form);onClose();}}} disabled={!form.vin||form.vin.length!==17} style={{...btn("#15803d","#4ade80"),opacity:(!form.vin||form.vin.length!==17)?0.4:1,cursor:(!form.vin||form.vin.length!==17)?"not-allowed":"pointer"}}>Add Vehicle</button>
+          <button onClick={onClose} style={btn("#1e293b","#334155",dark)}>Cancel</button>
+          <button onClick={()=>{if(form.vin&&form.vin.length===17){onAdd(form);onClose();}}} disabled={!form.vin||form.vin.length!==17} style={{...btn("#15803d","#4ade80",dark),opacity:(!form.vin||form.vin.length!==17)?0.4:1,cursor:(!form.vin||form.vin.length!==17)?"not-allowed":"pointer"}}>Add Vehicle</button>
         </div>
       </div>
     </div>
@@ -563,14 +615,16 @@ function AddCarModal({ onClose, onAdd, existingVINs }) {
 }
 
 // ─── KANBAN CARD ─────────────────────────────────────────────────────────────
-function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging, isGhost }) {
+function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging, isGhost, dark=false }) {
   const days       = daysSince(car.acquiredDate);
-  const badge      = t2lBadge(days);
-  const tags       = getIssueTags(car);
+  const badge      = t2lBadge(days, dark);
+  const tags       = getIssueTags(car, dark);
   const stageDays  = getStageDays(car);
-  const stageBadge = stageTimeBadge(stageDays);
+  const stageBadge = stageTimeBadge(stageDays, dark);
+  const cardBg     = dark ? "#0f172a" : "#ffffff";
+  const cardHover  = dark ? "#1e293b" : "#f8fafc";
   if (isGhost) return (
-    <div style={{height:"60px",borderRadius:"8px",border:"2px dashed #334155",background:"#0a0f1a",opacity:0.5}}/>
+    <div style={{height:"60px",borderRadius:"8px",border:`2px dashed ${dark?"#334155":"#cbd5e1"}`,background:dark?"#0a0f1a":"#f1f5f9",opacity:0.5}}/>
   );
   return (
     <div
@@ -578,23 +632,23 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
       onDragStart={e => { onDragStart(e, car); }}
       onClick={()=>{ if(!isDragging) onCarClick(car); }}
       style={{
-        background:"#0f172a",
-        border:isDupVIN?"1px solid #ea580c":"1px solid #1e293b",
+        background: cardBg,
+        border: isDupVIN ? "1px solid #ea580c" : `1px solid ${dark?"#1e293b":"#e2e8f0"}`,
         borderLeft:`3px solid ${isDupVIN?"#ea580c":stage.accent}`,
         borderRadius:"8px",padding:"10px",
         cursor:"grab",
         opacity: isDragging ? 0.35 : 1,
         transform: isDragging ? "scale(0.97)" : "scale(1)",
         transition:"background 0.12s, opacity 0.15s, transform 0.15s",
-        boxShadow: isDragging ? "none" : undefined,
+        boxShadow: isDragging ? "none" : (dark ? "none" : "0 1px 3px rgba(0,0,0,0.06)"),
       }}
-      onMouseEnter={e=>{ if(!isDragging) e.currentTarget.style.background="#1e293b"; }}
-      onMouseLeave={e=>e.currentTarget.style.background="#0f172a"}>
-      <div style={{fontSize:"13px",fontWeight:700,color:"#f1f5f9",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2"}}>{car.year} {car.make} {car.model}</div>
-      <div style={{fontSize:"11px",color:"#475569",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
-      {car.acv&&<div style={{fontSize:"11px",color:"#fbbf24",marginBottom:"4px",fontWeight:700}}>ACV {car.acv}</div>}
+      onMouseEnter={e=>{ if(!isDragging) e.currentTarget.style.background=cardHover; }}
+      onMouseLeave={e=>e.currentTarget.style.background=cardBg}>
+      <div style={{fontSize:"13px",fontWeight:700,color:dark?"#f1f5f9":"#1e293b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2"}}>{car.year} {car.make} {car.model}</div>
+      <div style={{fontSize:"11px",color:dark?"#475569":"#94a3b8",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
+      {car.acv&&<div style={{fontSize:"11px",color:dark?"#fbbf24":"#b45309",marginBottom:"4px",fontWeight:700}}>ACV {car.acv}</div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom: tags.length>0?"6px":"0"}}>
-        <span style={{fontSize:"11px",color:isDupVIN?"#ea580c":"#475569",fontFamily:"monospace",fontWeight:isDupVIN?700:400}}>
+        <span style={{fontSize:"11px",color:isDupVIN?"#ea580c":(dark?"#475569":"#94a3b8"),fontFamily:"monospace",fontWeight:isDupVIN?700:400}}>
           {car.vin?car.vin.slice(-6):"—"}{isDupVIN?" ⚠ DUP":""}
         </span>
         <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
@@ -610,7 +664,7 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
         </div>
       )}
       {car.notes?.length>0&&(
-        <div style={{marginTop:"6px",fontSize:"11px",color:"#334155",borderTop:"1px solid #1e293b",paddingTop:"5px",fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+        <div style={{marginTop:"6px",fontSize:"11px",color:dark?"#334155":"#94a3b8",borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"5px",fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           💬 {car.notes[car.notes.length-1].text}
         </div>
       )}
@@ -657,7 +711,7 @@ function useDragScroll() {
 }
 
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
-function KanbanView({ cars, onCarClick, dupVINs, onStageChange }) {
+function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
   const drag = useDragScroll();
@@ -709,7 +763,7 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange }) {
               <div style={{
                 display:"flex",justifyContent:"space-between",alignItems:"center",
                 padding:"7px 10px",
-                background: isOver ? stage.color+"99" : stage.color+"44",
+                background: isOver ? stage.color+"dd" : (dark ? stage.color+"44" : stage.color+"bb"),
                 borderRadius:"8px 8px 0 0",
                 borderBottom:`2px solid ${stage.accent}`,
                 marginBottom:"8px",
@@ -735,10 +789,11 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange }) {
                     onDragStart={handleDragStart}
                     isDragging={draggingId===car.id}
                     isGhost={false}
+                    dark={dark}
                   />
                 ))}
-                {isOver && draggingId && <KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false}/>}
-                {col.length===0&&!isOver&&<div style={{textAlign:"center",color:"#1e293b",fontSize:"12px",padding:"20px 0"}}>—</div>}
+                {isOver && draggingId && <KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false} dark={dark}/>}
+                {col.length===0&&!isOver&&<div style={{textAlign:"center",color:dark?"#1e293b":"#cbd5e1",fontSize:"12px",padding:"20px 0"}}>—</div>}
               </div>
             </div>
           );
@@ -746,11 +801,11 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange }) {
       </div>
       <style>{`[draggable]{-webkit-user-drag:element;} .drag-over{outline:2px solid #4ade80;}`}</style>
       {soldCars.length>0&&(
-        <div style={{marginTop:"20px",borderTop:"1px solid #1e293b",paddingTop:"16px"}}>
+        <div style={{marginTop:"20px",borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"16px"}}>
           <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"12px"}}>
             <span style={{fontSize:"12px",fontWeight:800,color:"#818cf8",letterSpacing:"0.1em",textTransform:"uppercase"}}>Sold 🏁</span>
             <span style={{background:"#818cf833",color:"#818cf8",borderRadius:"12px",fontSize:"11px",fontWeight:700,padding:"1px 8px"}}>{soldCars.length}</span>
-            <span style={{fontSize:"11px",color:"#334155"}}>Auto-removes after 60 days</span>
+            <span style={{fontSize:"11px",color:dark?"#334155":"#94a3b8"}}>Auto-removes after 60 days</span>
           </div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
             {soldCars.map(car=>{
@@ -758,13 +813,13 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange }) {
               const daysLeft = daysAgo!==null?60-daysAgo:null;
               return (
                 <div key={car.id} onClick={()=>onCarClick(car)}
-                  style={{background:"#0f172a",border:"1px solid #1e293b",borderLeft:"3px solid #818cf8",borderRadius:"8px",padding:"10px",cursor:"pointer",width:"190px",transition:"background 0.12s"}}
-                  onMouseEnter={e=>e.currentTarget.style.background="#1e293b"}
-                  onMouseLeave={e=>e.currentTarget.style.background="#0f172a"}>
-                  <div style={{fontSize:"13px",fontWeight:700,color:"#94a3b8",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif"}}>{car.year} {car.make} {car.model}</div>
-                  <div style={{fontSize:"11px",color:"#334155",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
-                  {car.acv&&<div style={{fontSize:"11px",color:"#fbbf2466",marginBottom:"3px"}}>ACV {car.acv}</div>}
-                  <div style={{fontSize:"10px",color:"#4c1d95",fontWeight:700}}>{daysLeft!==null?`Purges in ${daysLeft}d`:"Sold"}</div>
+                  style={{background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderLeft:"3px solid #818cf8",borderRadius:"8px",padding:"10px",cursor:"pointer",width:"190px",transition:"background 0.12s",boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.05)"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=dark?"#1e293b":"#f8fafc"}
+                  onMouseLeave={e=>e.currentTarget.style.background=dark?"#0f172a":"#ffffff"}>
+                  <div style={{fontSize:"13px",fontWeight:700,color:dark?"#94a3b8":"#64748b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif"}}>{car.year} {car.make} {car.model}</div>
+                  <div style={{fontSize:"11px",color:dark?"#334155":"#94a3b8",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
+                  {car.acv&&<div style={{fontSize:"11px",color:dark?"#fbbf2466":"#d97706",marginBottom:"3px"}}>ACV {car.acv}</div>}
+                  <div style={{fontSize:"10px",color:dark?"#4c1d95":"#7c3aed",fontWeight:700}}>{daysLeft!==null?`Purges in ${daysLeft}d`:"Sold"}</div>
                 </div>
               );
             })}
@@ -776,17 +831,17 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange }) {
 }
 
 // ─── TABLE VIEW ───────────────────────────────────────────────────────────────
-function TableView({ cars, onCarClick, dupVINs }) {
+function TableView({ cars, onCarClick, dupVINs, dark=false }) {
   const headers = ["Stock No","VIN","Year","Make","Model","Miles","ACV","R/W","Title","Keys","Issues","Payoff Sent","Title RCVD","Sent DMV","SPI Title","Reg Exp","SC Exp","In Svc","Svc Done","Body Shop","Detail","Photos","Frontline","Sold","T2L","Stage"];
   const dateFields = ["payoffSent","titleRcvd","sentDMV","spiTitle","regExp","scExp","inSvc","svcDone","bodyShop","detail","pics","frontline","soldDate"];
   const expiredFields = new Set(["regExp","scExp"]);
   const drag = useDragScroll();
   return (
     <div ref={drag.ref} onMouseDown={drag.onMouseDown} onMouseMove={drag.onMouseMove} onMouseUp={drag.onMouseUp} onMouseLeave={drag.onMouseLeave}
-      style={{overflowX:"auto",WebkitOverflowScrolling:"touch",cursor:"grab",scrollbarWidth:"thin"}}>
+      style={{overflowX:"auto",WebkitOverflowScrolling:"touch",cursor:"grab",scrollbarWidth:"thin",background:dark?"transparent":"#ffffff",borderRadius:"8px",border:dark?"none":"1px solid #e2e8f0"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px",minWidth:"900px"}}>
         <thead>
-          <tr>{headers.map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",color:"#475569",fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",borderBottom:"1px solid #1e293b",whiteSpace:"nowrap"}}>{h}</th>)}</tr>
+          <tr>{headers.map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",color:dark?"#475569":"#64748b",fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,whiteSpace:"nowrap",background:dark?"#060b14":"#f8fafc"}}>{h}</th>)}</tr>
         </thead>
         <tbody>
           {cars.map((car,i)=>{
@@ -797,21 +852,21 @@ function TableView({ cars, onCarClick, dupVINs }) {
             const tags  = getIssueTags(car);
             return (
               <tr key={car.id} onClick={()=>{ if(!drag.moved.current) onCarClick(car); }}
-                style={{cursor:"pointer",background:i%2===0?"#0a0f1a":"#0c1120",borderBottom:"1px solid #0f172a"}}
-                onMouseEnter={e=>e.currentTarget.style.background="#1e293b"}
-                onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"#0a0f1a":"#0c1120"}>
-                <td style={{padding:"8px 10px",fontFamily:"monospace",color:"#94a3b8",whiteSpace:"nowrap"}}>{car.stockNo}</td>
+                style={{cursor:"pointer",background:dark?(i%2===0?"#0a0f1a":"#0c1120"):(i%2===0?"#ffffff":"#f8fafc"),borderBottom:`1px solid ${dark?"#0f172a":"#f1f5f9"}`}}
+                onMouseEnter={e=>e.currentTarget.style.background=dark?"#1e293b":"#eff6ff"}
+                onMouseLeave={e=>e.currentTarget.style.background=dark?(i%2===0?"#0a0f1a":"#0c1120"):(i%2===0?"#ffffff":"#f8fafc")}>
+                <td style={{padding:"8px 10px",fontFamily:"monospace",color:dark?"#94a3b8":"#475569",whiteSpace:"nowrap"}}>{car.stockNo}</td>
                 <td style={{padding:"8px 10px",fontFamily:"monospace",color:isD?"#ea580c":"#475569",whiteSpace:"nowrap",fontSize:"11px",fontWeight:isD?700:400,background:isD?"#431407":"transparent"}}>
                   {car.vin||"—"}{isD?" ⚠":""}
                 </td>
-                <td style={{padding:"8px 10px",color:"#cbd5e1"}}>{car.year}</td>
-                <td style={{padding:"8px 10px",color:"#e2e8f0",fontWeight:600,whiteSpace:"nowrap"}}>{car.make}</td>
-                <td style={{padding:"8px 10px",color:"#cbd5e1",whiteSpace:"nowrap"}}>{car.model}</td>
-                <td style={{padding:"8px 10px",color:"#94a3b8",textAlign:"right"}}>{car.miles}</td>
-                <td style={{padding:"8px 10px",color:"#fbbf24",fontWeight:600,whiteSpace:"nowrap"}}>{car.acv||"—"}</td>
+                <td style={{padding:"8px 10px",color:dark?"#cbd5e1":"#475569"}}>{car.year}</td>
+                <td style={{padding:"8px 10px",color:dark?"#e2e8f0":"#1e293b",fontWeight:600,whiteSpace:"nowrap"}}>{car.make}</td>
+                <td style={{padding:"8px 10px",color:dark?"#cbd5e1":"#475569",whiteSpace:"nowrap"}}>{car.model}</td>
+                <td style={{padding:"8px 10px",color:dark?"#94a3b8":"#64748b",textAlign:"right"}}>{car.miles}</td>
+                <td style={{padding:"8px 10px",color:dark?"#fbbf24":"#b45309",fontWeight:600,whiteSpace:"nowrap"}}>{car.acv||"—"}</td>
                 <td style={{padding:"8px 10px",color:car.rw==="R"?"#4ade80":"#fb923c",fontWeight:700}}>{car.rw}</td>
-                <td style={{padding:"8px 10px",color:car.titleState==="ML"?"#f87171":"#94a3b8"}}>{car.titleState}</td>
-                <td style={{padding:"8px 10px",color:"#94a3b8",textAlign:"center"}}>{car.keys}</td>
+                <td style={{padding:"8px 10px",color:car.titleState==="ML"?"#f87171":(dark?"#94a3b8":"#64748b")}}>{car.titleState}</td>
+                <td style={{padding:"8px 10px",color:dark?"#94a3b8":"#64748b",textAlign:"center"}}>{car.keys}</td>
                 <td style={{padding:"6px 10px"}}>
                   <div style={{display:"flex",flexWrap:"wrap",gap:"3px"}}>
                     {tags.map((t,idx)=>(
@@ -822,7 +877,7 @@ function TableView({ cars, onCarClick, dupVINs }) {
                 {dateFields.map(k=>{
                   const expired = expiredFields.has(k)&&isExpired(car[k]);
                   return (
-                    <td key={k} style={{padding:"8px 10px",color:expired?"#f87171":car[k]?"#60a5fa":"#1e293b",background:expired?"#3f0e0e":"transparent",fontFamily:"monospace",whiteSpace:"nowrap",fontWeight:expired?700:400}}>
+                    <td key={k} style={{padding:"8px 10px",color:expired?"#f87171":car[k]?(dark?"#60a5fa":"#2563eb"):(dark?"#1e293b":"#cbd5e1"),background:expired?(dark?"#3f0e0e":"#fff1f2"):"transparent",fontFamily:"monospace",whiteSpace:"nowrap",fontWeight:expired?700:400}}>
                       {fmtDate(car[k])||"—"}{expired?" ⚠":""}
                     </td>
                   );
@@ -838,6 +893,52 @@ function TableView({ cars, onCarClick, dupVINs }) {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+
+// ─── SETTINGS PANEL ──────────────────────────────────────────────────────────
+function SettingsPanel({ dark, setDark, fontSize, setFontSize, highContrast, setHighContrast, onClose }) {
+  const bg     = dark ? "#0f172a" : "#ffffff";
+  const border = dark ? "#1e293b" : "#e2e8f0";
+  const text   = dark ? "#e2e8f0" : "#1e293b";
+  const sub    = dark ? "#64748b" : "#94a3b8";
+  return (
+    <div style={{position:"fixed",bottom:"72px",right:"20px",zIndex:9999,background:bg,border:`1px solid ${border}`,borderRadius:"14px",padding:"20px",width:"260px",boxShadow:dark?"0 8px 40px rgba(0,0,0,0.6)":"0 8px 40px rgba(0,0,0,0.15)",fontFamily:"'DM Sans',sans-serif"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+        <span style={{fontSize:"13px",fontWeight:800,color:text,letterSpacing:"0.04em",textTransform:"uppercase"}}>⚙ Settings</span>
+        <button onClick={onClose} style={{background:"none",border:"none",color:sub,cursor:"pointer",fontSize:"16px",padding:"0",lineHeight:1}}>✕</button>
+      </div>
+      {/* Dark Mode */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
+        <div>
+          <div style={{fontSize:"13px",fontWeight:600,color:text}}>Dark Mode</div>
+          <div style={{fontSize:"11px",color:sub}}>Switch to dark theme</div>
+        </div>
+        <div onClick={()=>setDark(d=>!d)} style={{width:"42px",height:"24px",borderRadius:"12px",background:dark?"#3b82f6":"#e2e8f0",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+          <div style={{position:"absolute",top:"3px",left:dark?"21px":"3px",width:"18px",height:"18px",borderRadius:"50%",background:"#ffffff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
+        </div>
+      </div>
+      {/* High Contrast */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
+        <div>
+          <div style={{fontSize:"13px",fontWeight:600,color:text}}>High Contrast</div>
+          <div style={{fontSize:"11px",color:sub}}>Bolder colors & borders</div>
+        </div>
+        <div onClick={()=>setHighContrast(h=>!h)} style={{width:"42px",height:"24px",borderRadius:"12px",background:highContrast?"#f59e0b":"#e2e8f0",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+          <div style={{position:"absolute",top:"3px",left:highContrast?"21px":"3px",width:"18px",height:"18px",borderRadius:"50%",background:"#ffffff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
+        </div>
+      </div>
+      {/* Font Size */}
+      <div>
+        <div style={{fontSize:"13px",fontWeight:600,color:text,marginBottom:"6px"}}>Font Size</div>
+        <div style={{display:"flex",gap:"6px"}}>
+          {[["S","12px"],["M","14px"],["L","16px"]].map(([label,size])=>(
+            <button key={label} onClick={()=>setFontSize(size)} style={{flex:1,padding:"6px",borderRadius:"8px",border:`1px solid ${fontSize===size?(dark?"#3b82f6":"#2563eb"):border}`,background:fontSize===size?(dark?"#1e3a5f":"#eff6ff"):(dark?"#0f172a":"#f8fafc"),color:fontSize===size?(dark?"#93c5fd":"#2563eb"):text,fontWeight:700,fontSize:"12px",cursor:"pointer",transition:"all 0.15s",fontFamily:"'DM Sans',sans-serif"}}>{label}</button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -862,6 +963,10 @@ export default function ReconDashboard() {
   const [connecting, setConnecting]   = useState(false);
   const [lastSynced, setLastSynced]   = useState(null);
   const [syncAgo, setSyncAgo]         = useState("");
+  const [dark, setDark]               = useState(false);
+  const [fontSize, setFontSize]       = useState("13px");
+  const [highContrast, setHighContrast] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
 
@@ -1005,7 +1110,6 @@ export default function ReconDashboard() {
           width:"min(520px, 85vw)",
           marginBottom:"36px",
           opacity: 0.95,
-          mixBlendMode:"screen",
         }}
       />
 
@@ -1158,16 +1262,16 @@ export default function ReconDashboard() {
   );
 
   return (
-    <div style={{minHeight:"100vh",background:"#060b14",color:"#e2e8f0",fontFamily:"'DM Mono','Fira Code','Courier New',monospace"}}>
+    <div style={{minHeight:"100vh",background:dark?"#060b14":"#f1f5f9",color:dark?"#e2e8f0":"#1e293b",fontFamily:"'DM Mono','Fira Code','Courier New',monospace",fontSize:fontSize,filter:highContrast?"contrast(1.12)":"none"}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600;800&display=swap');
         *{box-sizing:border-box;}
-        html,body,#root{margin:0;padding:0;background:#060b14;}
+        html,body,#root{margin:0;padding:0;background:${dark?"#060b14":"#f1f5f9"};}
         ::-webkit-scrollbar{width:4px;height:4px;}
-        ::-webkit-scrollbar-track{background:#0f172a;}
-        ::-webkit-scrollbar-thumb{background:#334155;border-radius:3px;}
-        input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.4);}
-        select option{background:#1e293b;}
+        ::-webkit-scrollbar-track{background:${dark?"#0f172a":"#e2e8f0"};}
+        ::-webkit-scrollbar-thumb{background:${dark?"#334155":"#94a3b8"};border-radius:3px;}
+        input[type=date]::-webkit-calendar-picker-indicator{filter:${dark?"invert(0.4)":"invert(0.6)"};}
+        select option{background:${dark?"#1e293b":"#ffffff"};}
         @media(max-width:600px){
           .nav-title{display:none;}
           .controls-row{flex-direction:column!important;align-items:stretch!important;}
@@ -1181,12 +1285,12 @@ export default function ReconDashboard() {
       <Confetti active={confetti} onDone={()=>setConfetti(false)}/>
 
       {/* NAV */}
-      <div style={{background:"#0a0f1a",borderBottom:"1px solid #1e293b",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100}}>
+      <div style={{background:dark?"#0a0f1a":"#ffffff",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.06)"}}>
         <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
           <div style={{width:"28px",height:"28px",background:"#dc2626",borderRadius:"6px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px",fontWeight:900,color:"#fff",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>S</div>
-          <span style={{fontSize:"15px",fontWeight:800,color:"#f1f5f9",fontFamily:"'DM Sans',sans-serif",letterSpacing:"-0.02em"}}>SERVCO</span>
+          <span style={{fontSize:"15px",fontWeight:800,color:dark?"#f1f5f9":"#1e293b",fontFamily:"'DM Sans',sans-serif",letterSpacing:"-0.02em"}}>SERVCO</span>
           <span className="nav-title" style={{color:"#334155",fontSize:"13px"}}>/</span>
-          <span className="nav-title" style={{fontSize:"12px",color:"#475569",fontFamily:"'DM Sans',sans-serif"}}>Recon Pipeline</span>
+          <span className="nav-title" style={{fontSize:"12px",color:dark?"#475569":"#64748b",fontFamily:"'DM Sans',sans-serif"}}>Recon Pipeline</span>
         </div>
         <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
           {notionMode&&!status&&syncAgo&&(
@@ -1198,6 +1302,7 @@ export default function ReconDashboard() {
           <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();}} style={{...btn(notionMode?"#1a2744":"#1e293b",notionMode?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 10px"}}>
             {notionMode?"🔗 Live":"🔗 Notion"}
           </button>
+          <button onClick={()=>setShowSettings(s=>!s)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"14px",padding:"5px 8px",color:dark?"#94a3b8":"#64748b"}} title="Settings">⚙</button>
           <button onClick={()=>setAdding(true)} style={{...btn("#14532d","#4ade80"),fontSize:"11px",padding:"5px 12px"}}>+ Add</button>
         </div>
       </div>
@@ -1228,8 +1333,8 @@ export default function ReconDashboard() {
           </div>
         </div>
 
-        <div style={{fontSize:"11px",color:"#334155",marginBottom:"12px"}}>
-          Showing <span style={{color:"#64748b",fontWeight:700}}>{filtered.length}</span> of {cars.length} vehicles
+        <div style={{fontSize:"11px",color:dark?"#334155":"#94a3b8",marginBottom:"12px"}}>
+          Showing <span style={{color:dark?"#64748b":"#475569",fontWeight:700}}>{filtered.length}</span> of {cars.length} vehicles
         </div>
 
         {dupVINs.size>0&&(
@@ -1243,15 +1348,16 @@ export default function ReconDashboard() {
         )}
 
         {loading
-          ? <div style={{textAlign:"center",padding:"60px",color:"#334155",fontSize:"14px"}}>Loading from Notion…</div>
+          ? <div style={{textAlign:"center",padding:"60px",color:dark?"#334155":"#94a3b8",fontSize:"14px"}}>Loading from Notion…</div>
           : view==="kanban"
-            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange}/>
-            : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs}/>
+            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} dark={dark}/>
+            : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
         }
       </div>
 
-      {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete}/>}
-      {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))}/>}
+      {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete} dark={dark}/>}
+      {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))} dark={dark}/>}
+      {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} highContrast={highContrast} setHighContrast={setHighContrast} onClose={()=>setShowSettings(false)}/>}
     </div>
   );
 }
