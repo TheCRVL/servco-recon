@@ -1751,7 +1751,7 @@ export default function ReconDashboard() {
             onChange={e=>{ setPwInput(e.target.value); setPwError(false); }}
             onKeyDown={e=>{
               if(e.key==="Enter"){
-                if(pwInput==="vercel13"){ setPwUnlocked(true); setPwError(false); }
+                if(pwInput==="vercel13"){ setPwUnlocked(true); setPwError(false); setConnecting(true); loadNotion(); }
                 else { setPwError(true); setPwInput(""); }
               }
             }}
@@ -1779,7 +1779,7 @@ export default function ReconDashboard() {
           )}
           <button
             onClick={()=>{
-              if(pwInput==="vercel13"){ setPwUnlocked(true); setPwError(false); }
+              if(pwInput==="vercel13"){ setPwUnlocked(true); setPwError(false); setConnecting(true); loadNotion(); }
               else { setPwError(true); setPwInput(""); }
             }}
             style={{
