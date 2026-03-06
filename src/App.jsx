@@ -330,8 +330,10 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const [regSafetyWarn, setRegSafetyWarn] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
-  // Track dirty state — compare current form against original car
-  const isDirty = JSON.stringify(form) !== JSON.stringify(car);
+  // Freeze the original car snapshot on first render — compare against this
+  // rather than the car prop (which may drift if parent re-renders)
+  const originalSnapshot = useRef(JSON.stringify(car));
+  const isDirty = JSON.stringify(form) !== originalSnapshot.current;
 
   const handleClose = () => {
     if (isDirty) { setConfirmDiscard(true); return; }
@@ -875,8 +877,8 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
                   {car.vin||"—"}{isD?" ⚠":""}
                 </td>
                 <td style={{padding:"8px 10px",color:dark?"#cbd5e1":"#475569"}}>{car.year}</td>
-                <td style={{padding:"8px 10px",color:dark?"#e2e8f0":"#1e293b",fontWeight:600,whiteSpace:"nowrap"}}>{car.make}</td>
-                <td style={{padding:"8px 10px",color:dark?"#cbd5e1":"#475569",whiteSpace:"nowrap"}}>{car.model}</td>
+                <td style={{padding:"8px 10px",color:dark?"#e2e8f0":"#1e293b",fontWeight:600,whiteSpace:"nowrap",textTransform:"uppercase"}}>{car.make}</td>
+                <td style={{padding:"8px 10px",color:dark?"#cbd5e1":"#475569",whiteSpace:"nowrap",textTransform:"uppercase"}}>{car.model}</td>
                 <td style={{padding:"8px 10px",color:dark?"#94a3b8":"#64748b",textAlign:"right"}}>{car.miles}</td>
                 <td style={{padding:"8px 10px",color:dark?"#fbbf24":"#b45309",fontWeight:600,whiteSpace:"nowrap"}}>{car.acv||"—"}</td>
                 <td style={{padding:"8px 10px",color:car.rw==="R"?"#4ade80":"#fb923c",fontWeight:700}}>{car.rw}</td>
@@ -1374,7 +1376,7 @@ export default function ReconDashboard() {
         </div>
 
         <div style={{fontSize:"11px",color:dark?"#334155":"#94a3b8",marginBottom:"12px"}}>
-          Showing <span style={{color:dark?"#64748b":"#475569",fontWeight:700}}>{filtered.length}</span> of {cars.length} vehicles
+          Showing <span style={{color:dark?"#64748b":"#475569",fontWeight:700}}>{filtered.length}</span> of {activeCars.filter(c=>c.stage!=="sold").length} vehicles
         </div>
 
         {dupVINs.size>0&&(
