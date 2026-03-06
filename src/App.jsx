@@ -10,7 +10,6 @@ const NOTION_DB_ID = import.meta.env.VITE_NOTION_DB_ID || "";
 // ─── PIPELINE STAGES ─────────────────────────────────────────────────────────
 const STAGES = [
   { id: "fresh",       label: "Fresh",        color: "#dbeafe", accent: "#1d4ed8", dark: "#1e3a5f", darkAccent: "#38bdf8" },
-  { id: "trade_hold",  label: "Trade Hold",   color: "#fee2e2", accent: "#b91c1c", dark: "#991b1b", darkAccent: "#f87171" },
   { id: "title_work",  label: "Title Work",   color: "#ede9fe", accent: "#6d28d9", dark: "#6d28d9", darkAccent: "#a78bfa" },
   { id: "reg_safety",  label: "Reg / Safety", color: "#fef3c7", accent: "#b45309", dark: "#92400e", darkAccent: "#fbbf24" },
   { id: "service",     label: "In Service",   color: "#dbeafe", accent: "#1d4ed8", dark: "#1e40af", darkAccent: "#60a5fa" },
@@ -211,7 +210,6 @@ function initStageTimes(car) {
   const t = {};
   const fill = (stage, date) => { if (!t[stage] && date) t[stage] = date; };
   fill("fresh",      car.acquiredDate);
-  fill("trade_hold", car.acquiredDate);
   fill("title_work", car.acquiredDate);
   fill("reg_safety", car.acquiredDate);
   fill("service",    car.inSvc || car.acquiredDate);
@@ -335,7 +333,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const autoStage = (key, val, currentForm) => {
     const f = {...currentForm, [key]: val};
     // Only auto-advance — never auto-retreat from a later stage
-    const stageOrder = ["fresh","trade_hold","title_work","reg_safety","service","body_shop","detail","photos","frontline","sold"];
+    const stageOrder = ["fresh","title_work","reg_safety","service","body_shop","detail","photos","frontline","sold"];
     const currentIdx = stageOrder.indexOf(f.stage);
     let newStage = f.stage;
 
