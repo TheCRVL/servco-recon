@@ -286,9 +286,7 @@ function StatsBar({ cars, dark=false }) {
 }
 
 // ─── NOTE THREAD ─────────────────────────────────────────────────────────────
-function NoteThread({ notes, onAdd, dark=false }) {
-  const [text,setText]     = useState("");
-  const [author,setAuthor] = useState("");
+function NoteThread({ notes, onAdd, text, setText, author, setAuthor, dark=false }) {
   const bg = dark ? "#060b14" : "#f8fafc";
   const border = dark ? "#1e293b" : "#e2e8f0";
   const labelColor = dark ? "#64748b" : "#94a3b8";
@@ -312,9 +310,9 @@ function NoteThread({ notes, onAdd, dark=false }) {
       <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
         <input placeholder="Name" value={author} onChange={e=>setAuthor(e.target.value)} style={input({width:"90px",minWidth:"80px",flex:"0 0 90px"},dark)}/>
         <input placeholder="Add a note…" value={text} onChange={e=>setText(e.target.value)}
-          onKeyDown={e=>{if(e.key==="Enter"&&text&&author){onAdd({text,author,date:new Date().toISOString().split("T")[0]});setText("");}}}
+          onKeyDown={e=>{if(e.key==="Enter"&&text&&author){onAdd({text,author,date:new Date().toISOString().split("T")[0]});setText("");setAuthor("");}}}
           style={input({flex:"1",minWidth:"120px"},dark)}/>
-        <button onClick={()=>{if(text&&author){onAdd({text,author,date:new Date().toISOString().split("T")[0]});setText("");}}} style={{background:"#1e40af",border:"1px solid #3b82f6",color:"#fff",borderRadius:"8px",padding:"8px 16px",cursor:"pointer",fontSize:"13px",fontWeight:600,fontFamily:"inherit"}}>Add</button>
+        <button onClick={()=>{if(text&&author){onAdd({text,author,date:new Date().toISOString().split("T")[0]});setText("");setAuthor("");}}} style={{background:"#1e40af",border:"1px solid #3b82f6",color:"#fff",borderRadius:"8px",padding:"8px 16px",cursor:"pointer",fontSize:"13px",fontWeight:600,fontFamily:"inherit"}}>Add</button>
       </div>
     </div>
   );
@@ -372,6 +370,9 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const [form, setForm]                   = useState({...car});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmNote, setConfirmNote]     = useState(false);
+  const [noteText, setNoteText]           = useState("");
+  const [noteAuthor, setNoteAuthor]       = useState("");
   const [regSafetyWarn, setRegSafetyWarn] = useState(false);
 
   // Auto-stage logic: when certain date fields are set, advance the stage intelligently
@@ -406,7 +407,11 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const set = (k, v) => setForm(f => autoStage(k, v, f));
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(car);
-  const handleClose = () => { if (isDirty) { setConfirmDiscard(true); } else { onClose(); } };
+  const handleClose = () => {
+    if (noteText.trim()) { setConfirmNote(true); return; }
+    if (isDirty) { setConfirmDiscard(true); return; }
+    onClose();
+  };
 
   const handleStageClick = (stageId) => {
     // Allow clicking any stage manually — including moving back from sold
@@ -562,10 +567,25 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
 
         {/* Notes */}
         <div style={{borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"14px"}}>
-          <NoteThread notes={form.notes||[]} onAdd={note=>setForm(f=>({...f,notes:[...(f.notes||[]),note]}))} dark={dark}/></div>
+          <NoteThread
+            notes={form.notes||[]}
+            onAdd={note=>{setForm(f=>({...f,notes:[...(f.notes||[]),note]}));setNoteText("");setNoteAuthor("");}}
+            text={noteText} setText={setNoteText}
+            author={noteAuthor} setAuthor={setNoteAuthor}
+            dark={dark}
+          /></div>
 
         {/* Actions */}
-        {confirmDiscard ? (
+        {confirmNote ? (
+          <div style={{marginTop:"16px",background:dark?"#0c1a2e":"#eff6ff",border:`1px solid ${dark?"#3b82f6":"#93c5fd"}`,borderRadius:"8px",padding:"12px 14px"}}>
+            <div style={{fontSize:"13px",color:dark?"#93c5fd":"#1d4ed8",fontWeight:600,marginBottom:"6px"}}>💬 You have an unsaved comment</div>
+            <div style={{fontSize:"12px",color:dark?"#64748b":"#475569",marginBottom:"10px"}}>Press <strong>Add</strong> to save your note to the card first, or discard it.</div>
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+              <button onClick={()=>setConfirmNote(false)} style={btn("#1e293b","#334155",dark)}>Go Back</button>
+              <button onClick={()=>{setNoteText("");setNoteAuthor("");setConfirmNote(false);if(!isDirty)onClose();else setConfirmDiscard(true);}} style={dark?{...btn("#1e3a5f","#3b82f6",dark),color:"#93c5fd"}:{...btn("#1e3a5f","#3b82f6",dark),background:"#3b82f6",color:"#fff",border:"1px solid #3b82f6"}}>Discard Comment</button>
+            </div>
+          </div>
+        ) : confirmDiscard ? (
           <div style={{marginTop:"16px",background:dark?"#1c1a07":"#fffbeb",border:`1px solid ${dark?"#d97706":"#fcd34d"}`,borderRadius:"8px",padding:"12px 14px"}}>
             <div style={{fontSize:"13px",color:dark?"#fcd34d":"#92400e",fontWeight:600,marginBottom:"10px"}}>Do you want to discard your changes?</div>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
