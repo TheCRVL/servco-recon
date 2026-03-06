@@ -203,6 +203,12 @@ function carToNotion(car) {
     "Needs Body Work":{checkbox: !!car.needsBodyWork},
     "Up For Sale":   {checkbox: !!car.upForSale},
     "No Plates":     {checkbox: !!car.noPlates},
+    "Notes":         (()=>{
+      const str = JSON.stringify(car.notes||[]);
+      const chunks = [];
+      for (let i=0; i<str.length; i+=2000) chunks.push({text:{content:str.slice(i,i+2000)}});
+      return {rich_text: chunks.length>0 ? chunks : [{text:{content:"[]"}}]};
+    })(),
   };
 }
 
@@ -1127,17 +1133,17 @@ export default function ReconDashboard() {
       }
       if (allResults.length > 0) {
         const fresh = allResults.map(page=>{
-          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;};
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:[]};
+          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
-        // Merge remote data with local notes & stageTimes; preserve local-only vehicles (no Notion UUID)
+        // Merge remote data with stageTimes; preserve local-only vehicles (no Notion UUID)
         setCars(prev => {
           const localOnly = prev.filter(p => !p.id.includes("-"));
           const merged = fresh.map(f => {
             const loc = prev.find(p=>p.id===f.id);
-            return loc ? {...f, notes:loc.notes, stageTimes:loc.stageTimes||f.stageTimes} : f;
+            return loc ? {...f, stageTimes:loc.stageTimes||f.stageTimes} : f;
           });
           return [...merged, ...localOnly];
         });
@@ -1191,8 +1197,8 @@ export default function ReconDashboard() {
       }
       if (allResults.length > 0) {
         const mapped = allResults.map(page=>{
-          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;};
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:[]};
+          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
