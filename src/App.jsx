@@ -1325,16 +1325,25 @@ export default function ReconDashboard() {
       }}>
         Recon Pipeline
       </div>
-      <div style={{
-        fontSize:"12px",
-        color:"#334155",
-        fontWeight:700,
-        letterSpacing:"0.2em",
-        textTransform:"uppercase",
-        marginBottom:"16px",
-      }}>
-        V 1 . 1
-      </div>
+      <a
+        href="https://docs.google.com/document/d/e/2PACX-1vQR1SwGp_1bPVKmRuX0tFaX_gQ4f6WTIO6hU1yb8LNPDKcnO67tRx9B_6b1EyKvjg/pub"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          fontSize:"12px",
+          color:"#334155",
+          fontWeight:700,
+          letterSpacing:"0.2em",
+          textTransform:"uppercase",
+          marginBottom:"16px",
+          textDecoration:"none",
+          cursor:"pointer",
+        }}
+        onMouseEnter={e=>e.currentTarget.style.color="#1d4ed8"}
+        onMouseLeave={e=>e.currentTarget.style.color="#334155"}
+      >
+        V 1 . 2
+      </a>
       <div style={{
         fontSize:"11px",
         color:"#94a3b8",
