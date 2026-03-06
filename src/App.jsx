@@ -178,25 +178,31 @@ async function notionFetch(path, method="GET", body=null) {
 }
 function carToNotion(car) {
   const rt = v => ({rich_text:[{text:{content:v||""}}]});
-  const dt = v => v ? {date:{start:v}} : {date:null};
-  return {
+  const props = {
     "Stock No":      {title:[{text:{content:car.stockNo||""}}]},
     "VIN":           rt(car.vin), "Year": rt(car.year), "Make": rt(car.make), "Model": rt(car.model),
     "Keys":          {select:{name:car.keys||"1"}}, "Miles": rt(car.miles),
     "R/W":           {select:{name:car.rw||"R"}}, "Title State": {select:{name:car.titleState||"HI"}},
     "Payoff Bank":   rt(car.payoffBank), "ACV": rt(car.acv),
     "Stage":         {select:{name:car.stage||"fresh"}},
-    "Acquired Date": dt(car.acquiredDate), "Payoff Sent": dt(car.payoffSent),
-    "Title RCVD":    dt(car.titleRcvd),   "Sent DMV":    dt(car.sentDMV),
-    "SPI Title RCVD":dt(car.spiTitle),    "Reg Exp":     dt(car.regExp),
-    "SC Exp":        dt(car.scExp),       "In Svc":      dt(car.inSvc),
-    "Svc Done":      dt(car.svcDone),     "Body Shop":   dt(car.bodyShop),
-    "Detail":        dt(car.detail),      "Pics":        dt(car.pics),
-    "Frontline":     dt(car.frontline),   "Sold Date":   dt(car.soldDate),
     "Parts Hold":    {checkbox: !!car.partsHold},
     "Needs Body Work":{checkbox: !!car.needsBodyWork},
     "Up For Sale":   {checkbox: !!car.upForSale},
   };
+  // Only include date fields that have actual values — omitting empty ones prevents 400 on POST
+  const dateFields = {
+    "Acquired Date": car.acquiredDate, "Payoff Sent": car.payoffSent,
+    "Title RCVD":    car.titleRcvd,    "Sent DMV":    car.sentDMV,
+    "SPI Title RCVD":car.spiTitle,     "Reg Exp":     car.regExp,
+    "SC Exp":        car.scExp,        "In Svc":      car.inSvc,
+    "Svc Done":      car.svcDone,      "Body Shop":   car.bodyShop,
+    "Detail":        car.detail,       "Pics":        car.pics,
+    "Frontline":     car.frontline,    "Sold Date":   car.soldDate,
+  };
+  Object.entries(dateFields).forEach(([key, val]) => {
+    if (val) props[key] = {date:{start:val}};
+  });
+  return props;
 }
 
 // ─── STATS BAR ────────────────────────────────────────────────────────────────
@@ -1153,16 +1159,6 @@ export default function ReconDashboard() {
           return [...merged, ...localOnly];
         });
         setLastSynced(Date.now());
-        // Bug 2: retry any cars that failed to sync on add
-        setCars(prev => {
-          prev.filter(p => p.pendingSync).forEach(async p => {
-            try {
-              const res = await notionFetch("/pages","POST",{parent:{database_id:NOTION_DB_ID},properties:carToNotion(p)});
-              if(res.id) setCars(cs=>cs.map(c=>c.id===p.id?{...c,id:res.id,pendingSync:false}:c));
-            } catch(_) {}
-          });
-          return prev;
-        });
       }
     } catch(_) { /* silent — don't alert user on background errors */ }
   }, []);
@@ -1173,6 +1169,22 @@ export default function ReconDashboard() {
     const id = setInterval(silentPoll, 30000);
     return () => clearInterval(id);
   }, [notionMode, silentPoll]);
+
+  // Retry any cars that failed to POST to Notion (pendingSync flag)
+  useEffect(() => {
+    if (!notionMode) return;
+    const pending = cars.filter(c => c.pendingSync);
+    if (!pending.length) return;
+    pending.forEach(async car => {
+      try {
+        const res = await notionFetch("/pages","POST",{parent:{database_id:NOTION_DB_ID},properties:carToNotion(car)});
+        if (res.id) {
+          setCars(cs => cs.map(c => c.id === car.id ? {...c, id: res.id, pendingSync: false} : c));
+          toast("✓ Synced pending vehicle to Notion");
+        }
+      } catch(_) {}
+    });
+  }, [cars, notionMode]);
 
   // Shift+S → focus search bar and paste clipboard VIN
   useEffect(() => {
@@ -1264,9 +1276,9 @@ export default function ReconDashboard() {
           toast("✓ Added to Notion");
         }
       } catch(e) {
-        // Bug 2: keep car locally and flag for retry on next poll rather than losing it
+        console.error("Notion add failed:", e.message);
         setCars(cs=>cs.map(c=>c.id===car.id?{...c,pendingSync:true}:c));
-        toast("⚠ Saved locally — will retry sync");
+        toast(`⚠ Sync failed (${e.message}) — saved locally, will retry`);
       }
     }
   };
