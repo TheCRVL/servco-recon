@@ -391,7 +391,8 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
       if (isExpired(regExp) || isExpired(scExp)) newStage = "reg_safety";
     }
     if (key === "inSvc" && val)     newStage = "service";
-    if (key === "svcDone" && val)   newStage = "detail";
+    if (key === "bodyShop" && val)  newStage = "body_shop";
+    if (key === "detail" && val)    newStage = "detail";
     if (key === "pics" && val)      newStage = "photos";
     if (key === "frontline" && val) newStage = "frontline";
     if (key === "soldDate" && val)  newStage = "sold";
