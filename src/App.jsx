@@ -1276,9 +1276,21 @@ export default function ReconDashboard() {
         fontWeight:700,
         letterSpacing:"0.2em",
         textTransform:"uppercase",
-        marginBottom:"52px",
+        marginBottom:"16px",
       }}>
-        V 1 . 0
+        V 1 . 1
+      </div>
+      <div style={{
+        fontSize:"11px",
+        color:"#94a3b8",
+        fontWeight:400,
+        textAlign:"center",
+        maxWidth:"340px",
+        lineHeight:"1.6",
+        marginBottom:"36px",
+      }}>
+        No snag too small — if you experience a bug or unnecessary friction, email{" "}
+        <a href="mailto:nox@servco.com" style={{color:"#64748b",fontWeight:600,textDecoration:"none"}}>nox@servco.com</a>
       </div>
 
       {/* Password gate */}
