@@ -10,7 +10,6 @@ const NOTION_DB_ID = import.meta.env.VITE_NOTION_DB_ID || "";
 // ─── PIPELINE STAGES ─────────────────────────────────────────────────────────
 const STAGES = [
   { id: "fresh",       label: "Fresh",        color: "#dbeafe", accent: "#1d4ed8", dark: "#1e3a5f", darkAccent: "#38bdf8" },
-  { id: "trade_hold",  label: "Trade Hold",   color: "#fee2e2", accent: "#b91c1c", dark: "#991b1b", darkAccent: "#f87171" },
   { id: "title_work",  label: "Title Work",   color: "#ede9fe", accent: "#6d28d9", dark: "#6d28d9", darkAccent: "#a78bfa" },
   { id: "reg_safety",  label: "Reg / Safety", color: "#fef3c7", accent: "#b45309", dark: "#92400e", darkAccent: "#fbbf24" },
   { id: "service",     label: "In Service",   color: "#dbeafe", accent: "#1d4ed8", dark: "#1e40af", darkAccent: "#60a5fa" },
@@ -57,6 +56,7 @@ const t2lBadge = (days, dark=false) => {
 function getIssueTags(car, dark=false) {
   const tags = [];
   if (dark) {
+    if (!car.stockNo || car.stockNo.trim() === "") tags.push({ label:"NO STOCK #",     color:"#f59e0b", bg:"#2d1b00" });
     if (isExpired(car.regExp))          tags.push({ label:"REG EXP",        color:"#dc2626", bg:"#3f0e0e" });
     if (isExpired(car.scExp))           tags.push({ label:"SC EXP",         color:"#dc2626", bg:"#3f0e0e" });
     if (!car.titleRcvd)                 tags.push({ label:"NO TITLE RCVD",  color:"#d97706", bg:"#2d1b00" });
@@ -66,6 +66,7 @@ function getIssueTags(car, dark=false) {
     if (daysSince(car.acquiredDate) > 21 && !["frontline","sold"].includes(car.stage))
                                         tags.push({ label:"21d+ IN RECON",  color:"#b91c1c", bg:"#3f0e0e" });
   } else {
+    if (!car.stockNo || car.stockNo.trim() === "") tags.push({ label:"NO STOCK #",     color:"#ffffff", bg:"#d97706" });
     if (isExpired(car.regExp))          tags.push({ label:"REG EXP",        color:"#ffffff", bg:"#dc2626" });
     if (isExpired(car.scExp))           tags.push({ label:"SC EXP",         color:"#ffffff", bg:"#dc2626" });
     if (!car.titleRcvd)                 tags.push({ label:"NO TITLE RCVD",  color:"#ffffff", bg:"#d97706" });
@@ -211,7 +212,6 @@ function initStageTimes(car) {
   const t = {};
   const fill = (stage, date) => { if (!t[stage] && date) t[stage] = date; };
   fill("fresh",      car.acquiredDate);
-  fill("trade_hold", car.acquiredDate);
   fill("title_work", car.acquiredDate);
   fill("reg_safety", car.acquiredDate);
   fill("service",    car.inSvc || car.acquiredDate);
@@ -224,10 +224,10 @@ function initStageTimes(car) {
 }
 
 function StatsBar({ cars, dark=false }) {
+  const activeCarsNoSold = cars.filter(c=>c.stage!=="sold");
   const frontline  = cars.filter(c=>c.stage==="frontline").length;
-  const sold       = cars.filter(c=>c.stage==="sold").length;
-  const stuck      = cars.filter(c=>daysSince(c.acquiredDate)>21&&!["frontline","sold"].includes(c.stage)).length;
-  const inProgress = cars.filter(c=>!["frontline","fresh","sold"].includes(c.stage)).length;
+  const stuck      = cars.filter(c=>daysSince(c.acquiredDate)>21&&![\"frontline\",\"sold\"].includes(c.stage)).length;
+  const inProgress = cars.filter(c=>![\"frontline\",\"fresh\",\"sold\"].includes(c.stage)).length;
   const doneCars   = cars.filter(c=>c.frontline&&c.acquiredDate);
   const avgT2L     = doneCars.length ? Math.round(doneCars.reduce((s,c)=>s+daysSince(c.acquiredDate),0)/doneCars.length) : null;
   const Stat = ({label,value,color}) => (
@@ -239,11 +239,9 @@ function StatsBar({ cars, dark=false }) {
   const divColor = dark ? "#1e293b" : "#e2e8f0";
   return (
     <div style={{display:"flex",justifyContent:"center",alignItems:"center",background:dark?"#0a0f1a":"#ffffff",border:`1px solid ${divColor}`,borderRadius:"12px",padding:"16px",marginBottom:"20px",flexWrap:"wrap",gap:"4px",boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.06)"}}>
-      <Stat label="Total"         value={cars.length}              color={dark?"#94a3b8":"#64748b"}/>
+      <Stat label="Total"         value={activeCarsNoSold.length}      color={dark?"#94a3b8":"#64748b"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
       <Stat label="Frontline"     value={frontline}                color={dark?"#4ade80":"#15803d"}/>
-      <div style={{width:"1px",height:"36px",background:divColor}}/>
-      <Stat label="Sold"          value={sold}                     color={dark?"#818cf8":"#6d28d9"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
       <Stat label="In Progress"   value={inProgress}               color={dark?"#60a5fa":"#1d4ed8"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
@@ -330,12 +328,21 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const [form, setForm]                   = useState({...car});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [regSafetyWarn, setRegSafetyWarn] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  // Track dirty state — compare current form against original car
+  const isDirty = JSON.stringify(form) !== JSON.stringify(car);
+
+  const handleClose = () => {
+    if (isDirty) { setConfirmDiscard(true); return; }
+    onClose();
+  };
 
   // Auto-stage logic: when certain date fields are set, advance the stage intelligently
   const autoStage = (key, val, currentForm) => {
     const f = {...currentForm, [key]: val};
     // Only auto-advance — never auto-retreat from a later stage
-    const stageOrder = ["fresh","trade_hold","title_work","reg_safety","service","body_shop","detail","photos","frontline","sold"];
+    const stageOrder = ["fresh","title_work","reg_safety","service","body_shop","detail","photos","frontline","sold"];
     const currentIdx = stageOrder.indexOf(f.stage);
     let newStage = f.stage;
 
@@ -380,18 +387,18 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
-      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      onClick={e=>e.target===e.currentTarget&&handleClose()}>
       <div style={{background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderRadius:"12px",width:"100%",maxWidth:"740px",padding:"20px",boxShadow:dark?"0 30px 80px rgba(0,0,0,0.9)":"0 20px 60px rgba(0,0,0,0.15)",margin:"auto"}}>
 
         {/* Header */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"14px",gap:"10px"}}>
           <div style={{minWidth:0}}>
-            <div style={{fontSize:"20px",fontWeight:800,color:dark?"#f1f5f9":"#1e293b",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2"}}>{form.year} {form.make} {form.model}</div>
+            <div style={{fontSize:"20px",fontWeight:800,color:dark?"#f1f5f9":"#1e293b",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2",textTransform:"uppercase"}}>{form.year} {form.make} {form.model}</div>
             <div style={{fontSize:"11px",color:dark?"#64748b":"#94a3b8",marginTop:"3px",fontFamily:"monospace",wordBreak:"break-all"}}>#{form.stockNo}{form.vin?` · ${form.vin}`:""} · {form.miles} mi</div>
           </div>
           <div style={{display:"flex",gap:"6px",alignItems:"center",flexShrink:0}}>
             <span style={{background:badge.bg,color:badge.fg,fontSize:"11px",fontWeight:700,fontFamily:"monospace",padding:"3px 8px",borderRadius:"5px",whiteSpace:"nowrap"}}>T2L {badge.label}</span>
-            <button onClick={onClose} style={{background:"none",border:"1px solid #334155",color:"#94a3b8",borderRadius:"6px",padding:"6px 10px",cursor:"pointer",fontSize:"13px"}}>✕</button>
+            <button onClick={handleClose} style={{background:"none",border:"1px solid #334155",color:"#94a3b8",borderRadius:"6px",padding:"6px 10px",cursor:"pointer",fontSize:"13px"}}>✕</button>
           </div>
         </div>
 
@@ -494,11 +501,19 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
               <button onClick={()=>{onDelete(form.id);onClose();}} style={dark?{...btn("#7f1d1d","#dc2626",dark),color:"#fca5a5"}:{...btn("#7f1d1d","#dc2626",dark),background:"#dc2626",color:"#fff",border:"1px solid #dc2626"}}>Yes, Delete</button>
             </div>
           </div>
+        ) : confirmDiscard ? (
+          <div style={{marginTop:"16px",background:dark?"#1c1600":"#fffbeb",border:`1px solid ${dark?"#fbbf24":"#f59e0b"}`,borderRadius:"8px",padding:"12px 14px"}}>
+            <div style={{fontSize:"13px",color:dark?"#fde68a":"#92400e",fontWeight:600,marginBottom:"10px"}}>⚠ You have unsaved changes. Discard them?</div>
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+              <button onClick={()=>setConfirmDiscard(false)} style={btn("#1e293b","#334155",dark)}>← Keep Editing</button>
+              <button onClick={onClose} style={{...btn("#7f1d1d","#dc2626",dark),background:dark?"#7f1d1d":"#dc2626",color:dark?"#fca5a5":"#fff",border:"1px solid #dc2626"}}>Discard Changes</button>
+            </div>
+          </div>
         ) : (
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"16px",flexWrap:"wrap",gap:"8px"}}>
             <button onClick={()=>setConfirmDelete(true)} style={{...btn("#1e293b","#334155",dark),color:dark?"#f87171":"#dc2626",fontSize:"12px"}}>🗑 Delete</button>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button onClick={onClose} style={btn("#1e293b","#334155",dark)}>Cancel</button>
+              <button onClick={handleClose} style={btn("#1e293b","#334155",dark)}>Cancel</button>
               <button onClick={()=>{onSave(form);onClose();}} style={btn("#15803d","#4ade80",dark)}>Save Changes</button>
             </div>
           </div>
@@ -644,7 +659,7 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
       }}
       onMouseEnter={e=>{ if(!isDragging) e.currentTarget.style.background=cardHover; }}
       onMouseLeave={e=>e.currentTarget.style.background=cardBg}>
-      <div style={{fontSize:"13px",fontWeight:700,color:dark?"#f1f5f9":"#1e293b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2"}}>{car.year} {car.make} {car.model}</div>
+      <div style={{fontSize:"13px",fontWeight:700,color:dark?"#f1f5f9":"#1e293b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",lineHeight:"1.2",textTransform:"uppercase"}}>{car.year} {car.make} {car.model}</div>
       <div style={{fontSize:"11px",color:dark?"#475569":"#94a3b8",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
       {car.acv&&<div style={{fontSize:"11px",color:dark?"#fbbf24":"#b45309",marginBottom:"4px",fontWeight:700}}>ACV {car.acv}</div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom: tags.length>0?"6px":"0"}}>
@@ -805,18 +820,18 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
           <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"12px"}}>
             <span style={{fontSize:"12px",fontWeight:800,color:"#818cf8",letterSpacing:"0.1em",textTransform:"uppercase"}}>Sold 🏁</span>
             <span style={{background:"#818cf833",color:"#818cf8",borderRadius:"12px",fontSize:"11px",fontWeight:700,padding:"1px 8px"}}>{soldCars.length}</span>
-            <span style={{fontSize:"11px",color:dark?"#334155":"#94a3b8"}}>Auto-removes after 60 days</span>
+            <span style={{fontSize:"11px",color:dark?"#334155":"#94a3b8"}}>Auto-removes after 10 days</span>
           </div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
             {soldCars.map(car=>{
               const daysAgo = soldDaysAgo(car);
-              const daysLeft = daysAgo!==null?60-daysAgo:null;
+              const daysLeft = daysAgo!==null?10-daysAgo:null;
               return (
                 <div key={car.id} onClick={()=>onCarClick(car)}
                   style={{background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderLeft:"3px solid #818cf8",borderRadius:"8px",padding:"10px",cursor:"pointer",width:"190px",transition:"background 0.12s",boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.05)"}}
                   onMouseEnter={e=>e.currentTarget.style.background=dark?"#1e293b":"#f8fafc"}
                   onMouseLeave={e=>e.currentTarget.style.background=dark?"#0f172a":"#ffffff"}>
-                  <div style={{fontSize:"13px",fontWeight:700,color:dark?"#94a3b8":"#64748b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif"}}>{car.year} {car.make} {car.model}</div>
+                  <div style={{fontSize:"13px",fontWeight:700,color:dark?"#94a3b8":"#64748b",marginBottom:"2px",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase"}}>{car.year} {car.make} {car.model}</div>
                   <div style={{fontSize:"11px",color:dark?"#334155":"#94a3b8",marginBottom:"4px",fontFamily:"monospace"}}>#{car.stockNo}</div>
                   {car.acv&&<div style={{fontSize:"11px",color:dark?"#fbbf2466":"#d97706",marginBottom:"3px"}}>ACV {car.acv}</div>}
                   <div style={{fontSize:"10px",color:dark?"#4c1d95":"#7c3aed",fontWeight:700}}>{daysLeft!==null?`Purges in ${daysLeft}d`:"Sold"}</div>
@@ -899,7 +914,7 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
 
 
 // ─── SETTINGS PANEL ──────────────────────────────────────────────────────────
-function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose }) {
+function SettingsPanel({ dark, setDark, fontSize, setFontSize, highContrast, setHighContrast, onClose }) {
   const bg     = dark ? "#0f172a" : "#ffffff";
   const border = dark ? "#1e293b" : "#e2e8f0";
   const text   = dark ? "#e2e8f0" : "#1e293b";
@@ -918,6 +933,16 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose }) {
         </div>
         <div onClick={()=>setDark(d=>!d)} style={{width:"42px",height:"24px",borderRadius:"12px",background:dark?"#3b82f6":"#e2e8f0",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
           <div style={{position:"absolute",top:"3px",left:dark?"21px":"3px",width:"18px",height:"18px",borderRadius:"50%",background:"#ffffff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
+        </div>
+      </div>
+      {/* High Contrast */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
+        <div>
+          <div style={{fontSize:"13px",fontWeight:600,color:text}}>High Contrast</div>
+          <div style={{fontSize:"11px",color:sub}}>Bolder colors & borders</div>
+        </div>
+        <div onClick={()=>setHighContrast(h=>!h)} style={{width:"42px",height:"24px",borderRadius:"12px",background:highContrast?"#f59e0b":"#e2e8f0",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+          <div style={{position:"absolute",top:"3px",left:highContrast?"21px":"3px",width:"18px",height:"18px",borderRadius:"50%",background:"#ffffff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
         </div>
       </div>
       {/* Font Size */}
@@ -940,6 +965,7 @@ export default function ReconDashboard() {
   const [selected, setSelected]       = useState(null);
   const [adding, setAdding]           = useState(false);
   const [search, setSearch]           = useState("");
+  const searchRef                     = useRef(null);
   const [stageFilter, setStageFilter] = useState("all");
   const [rwFilter, setRwFilter]       = useState("all");
   const [notionMode, setNotionMode]   = useState(false);
@@ -954,7 +980,8 @@ export default function ReconDashboard() {
   const [lastSynced, setLastSynced]   = useState(null);
   const [syncAgo, setSyncAgo]         = useState("");
   const [dark, setDark]               = useState(false);
-  const [fontSize, setFontSize]       = useState("14px");
+  const [fontSize, setFontSize]       = useState("13px");
+  const [highContrast, setHighContrast] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
@@ -962,34 +989,19 @@ export default function ReconDashboard() {
   // ── Silent background poll every 30s when Notion mode is on ────────────────
   const silentPoll = useCallback(async () => {
     try {
-      // Paginate through ALL pages — Notion caps at 100 per request
-      const allResults = [];
-      let hasMore = true;
-      let startCursor = undefined;
-      while (hasMore) {
-        const body = { page_size: 100 };
-        if (startCursor) body.start_cursor = startCursor;
-        const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`, "POST", body);
-        if (data.results) allResults.push(...data.results);
-        hasMore = data.has_more || false;
-        startCursor = data.next_cursor || undefined;
-      }
-      if (allResults.length > 0) {
-        const fresh = allResults.map(page=>{
+      const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`,"POST",{page_size:200});
+      if (data.results) {
+        const fresh = data.results.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
           const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
-        // Merge remote data with local notes & stageTimes; preserve local-only vehicles (no Notion UUID)
-        setCars(prev => {
-          const localOnly = prev.filter(p => !p.id.includes("-"));
-          const merged = fresh.map(f => {
-            const loc = prev.find(p=>p.id===f.id);
-            return loc ? {...f, notes:loc.notes, stageTimes:loc.stageTimes||f.stageTimes} : f;
-          });
-          return [...merged, ...localOnly];
-        });
+        // Merge remote data with local notes & stageTimes (preserve local overrides)
+        setCars(prev => fresh.map(f => {
+          const loc = prev.find(p=>p.id===f.id);
+          return loc ? {...f, notes:loc.notes, stageTimes:loc.stageTimes||f.stageTimes} : f;
+        }));
         setLastSynced(Date.now());
       }
     } catch(_) { /* silent — don't alert user on background errors */ }
@@ -1001,6 +1013,23 @@ export default function ReconDashboard() {
     const id = setInterval(silentPoll, 30000);
     return () => clearInterval(id);
   }, [notionMode, silentPoll]);
+
+  // Shift+S → focus search bar and paste clipboard VIN
+  useEffect(() => {
+    const handler = async e => {
+      if (e.key === "S" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        // Don't fire if user is typing in an input/textarea
+        if (["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName)) return;
+        e.preventDefault();
+        let clip = "";
+        try { clip = (await navigator.clipboard.readText()).trim(); } catch {}
+        setSearch(clip);
+        setTimeout(() => { searchRef.current?.focus(); searchRef.current?.select(); }, 50);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   // Tick the "synced X ago" label every 5 seconds
   useEffect(() => {
@@ -1017,20 +1046,9 @@ export default function ReconDashboard() {
   const loadNotion = async () => {
     setLoading(true); toast("Fetching from Notion…");
     try {
-      // Paginate through ALL pages — Notion hard-caps at 100 per request
-      const allResults = [];
-      let hasMore = true;
-      let startCursor = undefined;
-      while (hasMore) {
-        const body = { page_size: 100 };
-        if (startCursor) body.start_cursor = startCursor;
-        const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`, "POST", body);
-        if (data.results) allResults.push(...data.results);
-        hasMore = data.has_more || false;
-        startCursor = data.next_cursor || undefined;
-      }
-      if (allResults.length > 0) {
-        const mapped = allResults.map(page=>{
+      const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`,"POST",{page_size:200});
+      if (data.results) {
+        const mapped = data.results.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
           const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
           mc.stageTimes=initStageTimes(mc);
@@ -1038,6 +1056,13 @@ export default function ReconDashboard() {
         });
         setCars(mapped); setLastSynced(Date.now()); toast(`✓ Loaded ${mapped.length} vehicles`);
         setNotionMode(true); setSplash(false); setConnecting(false);
+
+        // Auto-delete sold vehicles older than 20 days from Notion
+        const toDelete = mapped.filter(c => c.stage === "sold" && soldDaysAgo(c) !== null && soldDaysAgo(c) >= 20 && c.id.includes("-"));
+        for (const c of toDelete) {
+          try { await notionFetch(`/pages/${c.id}`, "PATCH", { archived: true }); } catch {}
+        }
+        if (toDelete.length) toast(`🗑 Auto-archived ${toDelete.length} sold vehicle(s) from Notion (20+ days)`);
       }
     } catch(e) { toast(`❌ ${e.message}`); setConnecting(false); }
     setLoading(false);
@@ -1102,7 +1127,7 @@ export default function ReconDashboard() {
 
   const activeCars = cars.filter(c=>{
     if(c.stage!=="sold") return true;
-    const d = soldDaysAgo(c); return d===null||d<60;
+    const d = soldDaysAgo(c); return d===null||d<10;
   });
   const dupVINs = getDupVINs(activeCars);
   const filtered = activeCars.filter(c=>{
@@ -1115,7 +1140,7 @@ export default function ReconDashboard() {
 
   // ─── SPLASH SCREEN ──────────────────────────────────────────────────────────
   if (splash) return (
-    <div style={{minHeight:"100vh",background:"#ffffff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','DM Mono',sans-serif",padding:"24px"}}>
+    <div style={{minHeight:"100vh",background:"#060b14",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','DM Mono',sans-serif",padding:"24px"}}>
       <style>{"@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600;800&display=swap');*{box-sizing:border-box;}"}</style>
 
       {/* Logo */}
@@ -1132,7 +1157,7 @@ export default function ReconDashboard() {
       <div style={{
         fontSize:"clamp(15px,2.2vw,22px)",
         fontWeight:700,
-        color:"#64748b",
+        color:"#94a3b8",
         letterSpacing:"0.18em",
         textTransform:"uppercase",
         marginBottom:"10px",
@@ -1143,7 +1168,7 @@ export default function ReconDashboard() {
       <div style={{
         fontSize:"clamp(22px,4vw,42px)",
         fontWeight:800,
-        color:"#1e293b",
+        color:"#f1f5f9",
         letterSpacing:"0.04em",
         marginBottom:"6px",
         textAlign:"center",
@@ -1178,12 +1203,12 @@ export default function ReconDashboard() {
             }}
             style={{
               width:"100%",
-              background:"#f8fafc",
-              border:`1px solid ${pwError?"#dc2626":"#cbd5e1"}`,
+              background:"#0f172a",
+              border:`1px solid ${pwError?"#dc2626":"#1e3a5f"}`,
               borderRadius:"10px",
               padding:"14px 18px",
               fontSize:"15px",
-              color:"#1e293b",
+              color:"#e2e8f0",
               fontFamily:"'DM Mono',monospace",
               fontWeight:500,
               outline:"none",
@@ -1277,7 +1302,7 @@ export default function ReconDashboard() {
   );
 
   return (
-    <div style={{minHeight:"100vh",background:dark?"#060b14":"#f1f5f9",color:dark?"#e2e8f0":"#1e293b",fontFamily:"'DM Mono','Fira Code','Courier New',monospace",fontSize:"14px",zoom:parseInt(fontSize)/14}}>
+    <div style={{minHeight:"100vh",background:dark?"#060b14":"#f1f5f9",color:dark?"#e2e8f0":"#1e293b",fontFamily:"'DM Mono','Fira Code','Courier New',monospace",fontSize:fontSize,filter:highContrast?"contrast(1.12)":"none"}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600;800&display=swap');
         *{box-sizing:border-box;}
@@ -1328,7 +1353,7 @@ export default function ReconDashboard() {
 
         {/* CONTROLS */}
         <div className="controls-row" style={{display:"flex",gap:"8px",marginBottom:"14px",flexWrap:"wrap",alignItems:"center"}}>
-          <input placeholder="Search stock #, VIN, make, model…" value={search} onChange={e=>setSearch(e.target.value)}
+          <input ref={searchRef} placeholder="Search stock #, VIN, make, model…" value={search} onChange={e=>setSearch(e.target.value)}
             style={{...input({width:"240px"}),fontFamily:"'DM Sans',sans-serif"}}/>
           <select value={stageFilter} onChange={e=>setStageFilter(e.target.value)} style={input({width:"160px"})}>
             <option value="all">All Stages</option>
@@ -1372,7 +1397,7 @@ export default function ReconDashboard() {
 
       {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete} dark={dark}/>}
       {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))} dark={dark}/>}
-      {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} onClose={()=>setShowSettings(false)}/>}
+      {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} highContrast={highContrast} setHighContrast={setHighContrast} onClose={()=>setShowSettings(false)}/>}
     </div>
   );
 }
