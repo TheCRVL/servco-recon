@@ -1290,7 +1290,7 @@ export default function ReconDashboard() {
         marginBottom:"36px",
       }}>
         No snag too small — if you experience a bug or unnecessary friction, email{" "}
-        <a href="mailto:nox@servco.com" style={{color:"#64748b",fontWeight:600,textDecoration:"none"}}>nox@servco.com</a>
+        <a href="mailto:nox.colina@servco.com" style={{color:"#64748b",fontWeight:600,textDecoration:"none"}}>nox.colina@servco.com</a>
       </div>
 
       {/* Password gate */}
