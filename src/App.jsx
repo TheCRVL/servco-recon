@@ -327,6 +327,7 @@ function ModalExpField({label, fkey, form, set, dark=false}) {
 function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const [form, setForm]                   = useState({...car});
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [regSafetyWarn, setRegSafetyWarn] = useState(false);
 
   // Auto-stage logic: when certain date fields are set, advance the stage intelligently
@@ -359,6 +360,9 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
 
   const set = (k, v) => setForm(f => autoStage(k, v, f));
 
+  const isDirty = JSON.stringify(form) !== JSON.stringify(car);
+  const handleClose = () => { if (isDirty) { setConfirmDiscard(true); } else { onClose(); } };
+
   const handleStageClick = (stageId) => {
     // Allow clicking any stage manually — including moving back from sold
     if (stageId === "reg_safety") {
@@ -378,7 +382,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:1000,padding:"12px",overflowY:"auto"}}
-      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      onClick={e=>e.target===e.currentTarget&&handleClose()}>
       <div style={{background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderRadius:"12px",width:"100%",maxWidth:"740px",padding:"20px",boxShadow:dark?"0 30px 80px rgba(0,0,0,0.9)":"0 20px 60px rgba(0,0,0,0.15)",margin:"auto"}}>
 
         {/* Header */}
@@ -389,7 +393,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
           </div>
           <div style={{display:"flex",gap:"6px",alignItems:"center",flexShrink:0}}>
             <span style={{background:badge.bg,color:badge.fg,fontSize:"11px",fontWeight:700,fontFamily:"monospace",padding:"3px 8px",borderRadius:"5px",whiteSpace:"nowrap"}}>T2L {badge.label}</span>
-            <button onClick={onClose} style={{background:"none",border:"1px solid #334155",color:"#94a3b8",borderRadius:"6px",padding:"6px 10px",cursor:"pointer",fontSize:"13px"}}>✕</button>
+            <button onClick={handleClose} style={{background:"none",border:"1px solid #334155",color:"#94a3b8",borderRadius:"6px",padding:"6px 10px",cursor:"pointer",fontSize:"13px"}}>✕</button>
           </div>
         </div>
 
@@ -484,7 +488,15 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
           <NoteThread notes={form.notes||[]} onAdd={note=>setForm(f=>({...f,notes:[...(f.notes||[]),note]}))} dark={dark}/></div>
 
         {/* Actions */}
-        {confirmDelete ? (
+        {confirmDiscard ? (
+          <div style={{marginTop:"16px",background:dark?"#1c1a07":"#fffbeb",border:`1px solid ${dark?"#d97706":"#fcd34d"}`,borderRadius:"8px",padding:"12px 14px"}}>
+            <div style={{fontSize:"13px",color:dark?"#fcd34d":"#92400e",fontWeight:600,marginBottom:"10px"}}>Do you want to discard your changes?</div>
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+              <button onClick={()=>setConfirmDiscard(false)} style={btn("#1e293b","#334155",dark)}>Keep Editing</button>
+              <button onClick={onClose} style={dark?{...btn("#78350f","#d97706",dark),color:"#fcd34d"}:{...btn("#78350f","#d97706",dark),background:"#d97706",color:"#fff",border:"1px solid #d97706"}}>Discard Changes</button>
+            </div>
+          </div>
+        ) : confirmDelete ? (
           <div style={{marginTop:"16px",background:dark?"#3f0e0e":"#fef2f2",border:`1px solid ${dark?"#dc2626":"#fca5a5"}`,borderRadius:"8px",padding:"12px 14px"}}>
             <div style={{fontSize:"13px",color:dark?"#fca5a5":"#b91c1c",fontWeight:600,marginBottom:"10px"}}>Delete <strong>{form.year} {form.make} {form.model}</strong> (#{form.stockNo})? This cannot be undone.</div>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
@@ -496,7 +508,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"16px",flexWrap:"wrap",gap:"8px"}}>
             <button onClick={()=>setConfirmDelete(true)} style={{...btn("#1e293b","#334155",dark),color:dark?"#f87171":"#dc2626",fontSize:"12px"}}>🗑 Delete</button>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button onClick={onClose} style={btn("#1e293b","#334155",dark)}>Cancel</button>
+              <button onClick={handleClose} style={btn("#1e293b","#334155",dark)}>Cancel</button>
               <button onClick={()=>{onSave(form);onClose();}} style={btn("#15803d","#4ade80",dark)}>Save Changes</button>
             </div>
           </div>
