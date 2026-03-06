@@ -200,6 +200,7 @@ function carToNotion(car) {
     "Parts Hold":    {checkbox: !!car.partsHold},
     "Needs Body Work":{checkbox: !!car.needsBodyWork},
     "Up For Sale":   {checkbox: !!car.upForSale},
+    "No Plates":     {checkbox: !!car.noPlates},
   };
 }
 
@@ -486,6 +487,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
               {key:"partsHold",     label:"Parts Hold",      on:{bg:"#1c1a07",border:"#d97706",color:"#fbbf24"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
               {key:"needsBodyWork", label:"Needs Body Work",  on:{bg:"#0c1a2e",border:"#3b82f6",color:"#60a5fa"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
               {key:"upForSale",     label:"Up For Sale",      on:{bg:"#0d2818",border:"#22c55e",color:"#4ade80"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
+              {key:"noPlates",      label:"No Plates",        on:{bg:"#1a0a2e",border:"#a855f7",color:"#d8b4fe"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
             ].map(({key,label,on,off})=>{
               const active = !!form[key];
               const style  = active ? on : off;
@@ -586,7 +588,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
 
 // ─── ADD CAR MODAL ────────────────────────────────────────────────────────────
 function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
-  const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:"",partsHold:false,needsBodyWork:false,upForSale:false};
+  const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:"",partsHold:false,needsBodyWork:false,upForSale:false,noPlates:false};
   const [form,setForm] = useState(blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const vinDup = form.vin&&form.vin.length>5&&existingVINs.has(form.vin.toUpperCase());
@@ -732,7 +734,7 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
           <span style={{background:badge.bg,color:badge.fg,fontSize:"10px",fontWeight:700,fontFamily:"monospace",padding:"2px 6px",borderRadius:"4px"}}>{badge.label}</span>
         </div>
       </div>
-      {(tags.length>0||car.partsHold||car.needsBodyWork||car.upForSale)&&(
+      {(tags.length>0||car.partsHold||car.needsBodyWork||car.upForSale||car.noPlates)&&(
         <div style={{display:"flex",flexWrap:"wrap",gap:"3px",marginTop:"4px"}}>
           {tags.map((t,i)=>(
             <span key={i} style={{background:t.bg,color:t.color,fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>{t.label}</span>
@@ -740,6 +742,7 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
           {car.partsHold&&<span style={{background:"#1c1a07",color:"#fbbf24",border:"1px solid #d97706",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>PARTS HOLD</span>}
           {car.needsBodyWork&&<span style={{background:"#0c1a2e",color:"#60a5fa",border:"1px solid #3b82f6",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>BODY WORK</span>}
           {car.upForSale&&<span style={{background:"#0d2818",color:"#4ade80",border:"1px solid #22c55e",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>UP FOR SALE</span>}
+          {car.noPlates&&<span style={{background:"#1a0a2e",color:"#d8b4fe",border:"1px solid #a855f7",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>NO PLATES</span>}
         </div>
       )}
       {car.notes?.length>0&&(
@@ -1085,7 +1088,7 @@ export default function ReconDashboard() {
       if (allResults.length > 0) {
         const fresh = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;};
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),notes:[]};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:[]};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -1140,7 +1143,7 @@ export default function ReconDashboard() {
       if (allResults.length > 0) {
         const mapped = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;};
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),notes:[]};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:[]};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
