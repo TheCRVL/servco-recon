@@ -11,7 +11,6 @@ const NOTION_DB_ID = import.meta.env.VITE_NOTION_DB_ID || "";
 const STAGES = [
   { id: "fresh",       label: "Fresh",        color: "#dbeafe", accent: "#1d4ed8", dark: "#1e3a5f", darkAccent: "#38bdf8" },
   { id: "title_work",  label: "Title Work",   color: "#ede9fe", accent: "#6d28d9", dark: "#6d28d9", darkAccent: "#a78bfa" },
-  { id: "reg_safety",  label: "Reg / Safety", color: "#fef3c7", accent: "#b45309", dark: "#92400e", darkAccent: "#fbbf24" },
   { id: "service",     label: "In Service",   color: "#dbeafe", accent: "#1d4ed8", dark: "#1e40af", darkAccent: "#60a5fa" },
   { id: "body_shop",   label: "Body Shop",    color: "#cffafe", accent: "#0e7490", dark: "#0e7490", darkAccent: "#22d3ee" },
   { id: "detail",      label: "Detail",       color: "#d1fae5", accent: "#065f46", dark: "#065f46", darkAccent: "#34d399" },
@@ -33,10 +32,9 @@ function useIsMobile() {
 }
 
 // ─── SWIPE CONFIG ─────────────────────────────────────────────────────────────
-const SWIPE_ORDER = ["fresh","title_work","reg_safety","service","body_shop","detail","photos","frontline","sold"];
+const SWIPE_ORDER = ["fresh","title_work","service","body_shop","detail","photos","frontline","sold"];
 const SWIPE_CFG   = {
   title_work:{bg:"#3b0764",text:"#a78bfa",icon:"📋"},
-  reg_safety:{bg:"#78350f",text:"#fbbf24",icon:"🔍"},
   service:   {bg:"#1e3a8a",text:"#60a5fa",icon:"🔧"},
   body_shop: {bg:"#164e63",text:"#22d3ee",icon:"🛠"},
   detail:    {bg:"#064e3b",text:"#34d399",icon:"✨"},
@@ -60,7 +58,7 @@ const MOCK = [
   { id:"1", stockNo:"GVA05952", vin:"1FTBR1C80RKA05952", year:"2024", make:"Ford",   model:"Transit",      keys:"2", miles:"8,923",  acv:"$24,500", rw:"R", titleState:"HI", payoffBank:"Ally", acquiredDate:"2026-01-28", payoffSent:"2026-02-01", titleRcvd:"2026-02-08", sentDMV:"2026-02-09", spiTitle:"2026-02-18", regExp:"2026-12-01", scExp:"2026-11-15", inSvc:"2026-02-10", svcDone:"2026-02-13", bodyShop:"",         detail:"2026-02-14", pics:"2026-02-15", frontline:"2026-02-16", soldDate:"", stage:"frontline",  notes:[{text:"Detail and photos done. Frontline ready.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-28",service:"2026-02-10",detail:"2026-02-14",photos:"2026-02-15",frontline:"2026-02-16"} },
   { id:"2", stockNo:"WKA305P",  vin:"1N6BA1F42RN305002", year:"2016", make:"Nissan", model:"NV Passenger", keys:"1", miles:"83,422", acv:"$8,200",  rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-03-10", scExp:"2026-02-10", inSvc:"2026-02-20", svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"service",    notes:[{text:"Going in next available on heavy duty rack.",author:"Conrad",date:"2026-02-28"},{text:"HVAC heaterhose ordered from dealer.",author:"Lyie B",date:"2025-12-15"}], stageTimes:{fresh:"2026-01-20",service:"2026-02-20"} },
   { id:"3", stockNo:"SFB53904", vin:"1C6JJTBG5NL153904", year:"2022", make:"Jeep",   model:"Gladiator",    keys:"2", miles:"62,088", acv:"$31,000", rw:"R", titleState:"ML", payoffBank:"Ally", acquiredDate:"2026-02-10", payoffSent:"2026-02-12", titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-01-15", scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"title_work", notes:[{text:"Mainland bank — Ally. Payoff check mailed 2/12.",author:"Michelle P",date:"2026-02-12"}], stageTimes:{fresh:"2026-02-10",title_work:"2026-02-10"} },
-  { id:"4", stockNo:"TYA22101", vin:"2T1BURHE0NC022101", year:"2023", make:"Toyota", model:"Corolla",      keys:"1", miles:"24,500", acv:"$18,750", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-15", payoffSent:"",          titleRcvd:"2026-02-22", sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"2026-02-01", inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"reg_safety", notes:[{text:"Failed safety check. Needs fresh SC before detail.",author:"Kapono",date:"2026-02-25"}], stageTimes:{fresh:"2026-02-15",reg_safety:"2026-02-22"} },
+  { id:"4", stockNo:"TYA22101", vin:"2T1BURHE0NC022101", year:"2023", make:"Toyota", model:"Corolla",      keys:"1", miles:"24,500", acv:"$18,750", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-15", payoffSent:"",          titleRcvd:"2026-02-22", sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"2026-02-01", inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"title_work", notes:[{text:"SC expired — needs safety before going to service.",author:"Kapono",date:"2026-02-25"}], stageTimes:{fresh:"2026-02-15",title_work:"2026-02-22"} },
   { id:"5", stockNo:"HNA88231", vin:"5FNYF6H09NB088231", year:"2021", make:"Honda",  model:"Pilot",        keys:"2", miles:"41,200", acv:"$22,000", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"2026-02-26", svcDone:"2026-03-01", bodyShop:"2026-03-01",detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"body_shop",  notes:[{text:"Minor bumper repair. Sent to sublet body shop.",author:"Tony",date:"2026-03-01"}], stageTimes:{fresh:"2026-02-20",service:"2026-02-26",body_shop:"2026-03-01"} },
   { id:"6", stockNo:"MZA91045", vin:"JM3KFBCM1L0391045", year:"2020", make:"Mazda",  model:"CX-5",         keys:"1", miles:"55,100", acv:"$14,200", rw:"W", titleState:"HI", payoffBank:"",     acquiredDate:"2026-03-01", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"fresh",      notes:[{text:"Just acquired. Decide R or W by tomorrow.",author:"Kapono",date:"2026-03-01"}], stageTimes:{fresh:"2026-03-01"} },
   { id:"7", stockNo:"KIA77432",  vin:"5XXG14J27PG077432", year:"2023", make:"Kia",    model:"Sportage",     keys:"2", miles:"19,800", acv:"$26,500", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-10", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"2026-02-01", soldDate:"2026-02-15", stage:"sold",       notes:[{text:"Sold 2/15. Deal funded.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-10",frontline:"2026-02-01",sold:"2026-02-15"} },
@@ -276,10 +274,9 @@ const STAGE_DATE_FIELD = {
 function initStageTimes(car) {
   const t = {};
   const fill = (stage, date) => { if (!t[stage] && date) t[stage] = date; };
-  // fresh / title_work / reg_safety have no dedicated date field — use acquiredDate
+  // fresh / title_work have no dedicated date field — use acquiredDate
   fill("fresh",      car.acquiredDate);
   fill("title_work", car.acquiredDate);
-  fill("reg_safety", car.acquiredDate);
   // All other stages: ONLY use their actual date field — never fall back to acquiredDate
   fill("service",   car.inSvc);
   fill("body_shop", car.bodyShop);
@@ -292,9 +289,10 @@ function initStageTimes(car) {
 
 function StatsBar({ cars, dark=false }) {
   const activeCars = cars.filter(c=>c.stage!=="sold");
-  const frontline  = activeCars.filter(c=>c.stage==="frontline").length;
-  const stuck      = activeCars.filter(c=>daysSince(c.acquiredDate)>21&&c.stage!=="frontline").length;
-  const inProgress = activeCars.filter(c=>!["frontline","fresh"].includes(c.stage)).length;
+  // Frontline = in frontline stage OR tagged Online (deduped — one car counts once)
+  const frontline  = activeCars.filter(c=>c.stage==="frontline" || !!c.upForSale).length;
+  const stuck      = activeCars.filter(c=>daysSince(c.acquiredDate)>21&&c.stage!=="frontline"&&!c.upForSale).length;
+  const inProgress = activeCars.filter(c=>!["frontline","fresh"].includes(c.stage)&&!c.upForSale).length;
   const doneCars   = cars.filter(c=>c.frontline&&c.acquiredDate);
   const avgT2L     = doneCars.length ? Math.round(doneCars.reduce((s,c)=>s+daysSince(c.acquiredDate),0)/doneCars.length) : null;
   const Stat = ({label,value,color}) => (
@@ -308,7 +306,7 @@ function StatsBar({ cars, dark=false }) {
     <div style={{display:"flex",justifyContent:"center",alignItems:"center",background:dark?"#0a0f1a":"#ffffff",border:`1px solid ${divColor}`,borderRadius:"12px",padding:"16px",marginBottom:"20px",flexWrap:"wrap",gap:"4px",boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.06)"}}>
       <Stat label="Total"         value={activeCars.length}        color={dark?"#94a3b8":"#64748b"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
-      <Stat label="Frontline"     value={frontline}                color={dark?"#4ade80":"#15803d"}/>
+      <Stat label="Frontline/Online" value={frontline}              color={dark?"#4ade80":"#15803d"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
       <Stat label="In Progress"   value={inProgress}               color={dark?"#60a5fa":"#1d4ed8"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
@@ -399,6 +397,47 @@ function ModalExpField({label, fkey, form, set, dark=false}) {
   );
 }
 
+// ─── ACQUIRED FIELD (date picker + age-in-days helper) ───────────────────────
+function AcquiredField({ form, set, dark=false }) {
+  const [ageMode, setAgeMode]   = useState(false);
+  const [ageDays, setAgeDays]   = useState("");
+  const applyAge = () => {
+    const n = parseInt(ageDays, 10);
+    if (isNaN(n) || n < 0) return;
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    set("acquiredDate", d.toISOString().split("T")[0]);
+    setAgeMode(false); setAgeDays("");
+  };
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <label style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Acquired</label>
+        <button onClick={()=>{setAgeMode(m=>!m);setAgeDays("");}}
+          style={{background:"none",border:"none",fontSize:"10px",color:dark?"#475569":"#94a3b8",cursor:"pointer",padding:"0 2px",fontWeight:700,letterSpacing:"0.04em"}}>
+          {ageMode ? "← date" : "age?"}
+        </button>
+      </div>
+      {ageMode ? (
+        <div style={{display:"flex",gap:"4px"}}>
+          <input type="number" min="0" max="999" value={ageDays}
+            onChange={e=>setAgeDays(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&applyAge()}
+            placeholder="days old"
+            autoFocus
+            style={{...input({},dark),flex:1,fontFamily:"monospace"}}/>
+          <button onClick={applyAge}
+            style={{background:"#15803d",border:"1px solid #4ade80",color:"#fff",borderRadius:"6px",padding:"0 10px",cursor:"pointer",fontSize:"12px",fontWeight:700,flexShrink:0}}>
+            Set
+          </button>
+        </div>
+      ) : (
+        <input type="date" value={form.acquiredDate||""} onChange={e=>set("acquiredDate",e.target.value)} style={input({},dark)}/>
+      )}
+    </div>
+  );
+}
+
 // ─── CAR DETAIL MODAL ────────────────────────────────────────────────────────
 function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark=false }) {
   const [form, setForm]                   = useState({...car});
@@ -407,7 +446,6 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
   const [confirmNote, setConfirmNote]     = useState(false);
   const [noteText, setNoteText]           = useState("");
   const [noteAuthor, setNoteAuthor]       = useState("");
-  const [regSafetyWarn, setRegSafetyWarn] = useState(false);
 
   // ── Tinder-style swipe (mobile-only) ──────────────────────────────────────
   const isMobile        = useIsMobile();
@@ -539,18 +577,12 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
   const autoStage = (key, val, currentForm) => {
     const f = {...currentForm, [key]: val};
     // Only auto-advance — never auto-retreat from a later stage
-    const stageOrder = ["fresh","title_work","reg_safety","service","body_shop","detail","photos","frontline","sold"];
+    const stageOrder = ["fresh","title_work","service","body_shop","detail","photos","frontline","sold"];
     const currentIdx = stageOrder.indexOf(f.stage);
     let newStage = f.stage;
 
     if (key === "sentDMV" && val)    newStage = "title_work";
     if (key === "payoffSent" && val) newStage = "title_work";
-    if (key === "regExp" || key === "scExp") {
-      // If either exp date is in the past (or missing), suggest reg/safety
-      const regExp = key === "regExp" ? val : f.regExp;
-      const scExp  = key === "scExp"  ? val : f.scExp;
-      if (isExpired(regExp) || isExpired(scExp)) newStage = "reg_safety";
-    }
     if (key === "inSvc" && val)     newStage = "service";
     if (key === "bodyShop" && val)  newStage = "body_shop";
     if (key === "detail" && val)    newStage = "detail";
@@ -575,11 +607,6 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
 
   const handleStageClick = (stageId) => {
     // Allow clicking any stage manually — including moving back from sold
-    if (stageId === "reg_safety") {
-      const regOk = form.regExp && !isExpired(form.regExp);
-      const scOk  = form.scExp  && !isExpired(form.scExp);
-      if (regOk && scOk) { setRegSafetyWarn(true); return; }
-    }
     const today = new Date().toISOString().split("T")[0];
     const dateField = STAGE_DATE_FIELD[stageId];
     setForm(f => {
@@ -590,7 +617,6 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
       if (dateField && !f[dateField]) updates[dateField] = today;
       return {...f, ...updates};
     });
-    setRegSafetyWarn(false);
   };
 
   // Use ModalField/ModalSelect/ModalExpField directly with form+set props
@@ -684,16 +710,6 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
               }}>{st.label}</button>
             ))}
           </div>
-          {/* Reg/Safety Warning */}
-          {regSafetyWarn && (
-            <div style={{marginTop:"10px",background:"#1c1600",border:"1px solid #fbbf24",borderRadius:"8px",padding:"12px 14px"}}>
-              <div style={{fontSize:"12px",color:"#fde68a",fontWeight:700,marginBottom:"8px"}}>⚠ Reg and Safety Check appear up to date — did you mean to move here?</div>
-              <div style={{display:"flex",gap:"8px"}}>
-                <button onClick={()=>{set("stage","reg_safety");setRegSafetyWarn(false);}} style={{...btn("#92400e","#fbbf24"),fontSize:"12px",padding:"5px 12px",color:"#fde68a"}}>Yes, move to Reg / Safety</button>
-                <button onClick={()=>setRegSafetyWarn(false)} style={{...btn("#1e293b","#334155"),fontSize:"12px",padding:"5px 12px"}}>Cancel</button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Toggles */}
@@ -703,7 +719,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
             {[
               {key:"partsHold",     label:"Parts Hold",      on:{bg:"#1c1a07",border:"#d97706",color:"#fbbf24"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
               {key:"needsBodyWork", label:"Needs Body Work",  on:{bg:"#0c1a2e",border:"#3b82f6",color:"#60a5fa"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
-              {key:"upForSale",     label:"Up For Sale",      on:{bg:"#0d2818",border:"#22c55e",color:"#4ade80"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
+              {key:"upForSale",     label:"Online",           on:{bg:"#0d2818",border:"#22c55e",color:"#4ade80"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
               {key:"noPlates",      label:"No Plates",        on:{bg:"#1a0a2e",border:"#a855f7",color:"#d8b4fe"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
             ].map(({key,label,on,off})=>{
               const active = !!form[key];
@@ -750,7 +766,8 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
         <div style={{borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"14px",marginBottom:"14px"}}>
           <div style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.1em",marginBottom:"10px"}}>TIMELINE</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:"10px"}}>
-            <ModalField label="Acquired"      fkey="acquiredDate"  type="date" form={form} set={set}/>
+            {/* Acquired date — also accepts age-in-days */}
+            <AcquiredField form={form} set={set} dark={dark}/>
             <ModalField label="Payoff Bank"   fkey="payoffBank" form={form} set={set}/>
             <ModalField label="Payoff Sent"   fkey="payoffSent"    type="date" form={form} set={set}/>
             <ModalField label="Title RCVD"    fkey="titleRcvd"     type="date" form={form} set={set}/>
@@ -916,10 +933,7 @@ function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
               <div style={{fontSize:"11px",color:"#fb923c",fontWeight:700,marginTop:"2px"}}>⚠ This VIN already exists in inventory — possible duplicate or re-acquired vehicle.</div>
             )}
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
-            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Acquired</label>
-            <input type="date" value={form.acquiredDate} onChange={e=>set("acquiredDate",e.target.value)} style={input({},dark)}/>
-          </div>
+          <AcquiredField form={form} set={set} dark={dark}/>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
             <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Title State</label>
             <select value={form.titleState} onChange={e=>set("titleState",e.target.value)} style={input({},dark)}>
@@ -963,7 +977,7 @@ function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
 }
 
 // ─── KANBAN CARD ─────────────────────────────────────────────────────────────
-function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging, isGhost, dark=false }) {
+function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging, isGhost, dark=false, onContextMenu }) {
   const days       = daysSince(car.acquiredDate);
   const badge      = t2lBadge(days, dark);
   const tags       = getIssueTags(car, dark);
@@ -979,6 +993,7 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
       draggable
       onDragStart={e => { onDragStart(e, car); }}
       onClick={()=>{ if(!isDragging) onCarClick(car); }}
+      onContextMenu={onContextMenu ? e=>onContextMenu(e,car) : undefined}
       style={{
         background: cardBg,
         border: isDupVIN ? "1px solid #ea580c" : `1px solid ${dark?"#1e293b":"#e2e8f0"}`,
@@ -1011,7 +1026,7 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
           ))}
           {car.partsHold&&<span style={{background:"#1c1a07",color:"#fbbf24",border:"1px solid #d97706",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>PARTS HOLD</span>}
           {car.needsBodyWork&&<span style={{background:"#0c1a2e",color:"#60a5fa",border:"1px solid #3b82f6",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>BODY WORK</span>}
-          {car.upForSale&&<span style={{background:"#0d2818",color:"#4ade80",border:"1px solid #22c55e",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>UP FOR SALE</span>}
+          {car.upForSale&&<span style={{background:"#0d2818",color:"#4ade80",border:"1px solid #22c55e",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>ONLINE</span>}
           {car.noPlates&&<span style={{background:"#1a0a2e",color:"#d8b4fe",border:"1px solid #a855f7",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>NO PLATES</span>}
         </div>
       )}
@@ -1064,13 +1079,24 @@ function useDragScroll() {
 
 
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
-function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
+function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
   const drag = useDragScroll();
 
   const [draggingId, setDraggingId]   = useState(null);
   const [overStage,  setOverStage]    = useState(null);
+
+  // ── Right-click context menu ────────────────────────────────────────────────
+  const [ctxMenu, setCtxMenu] = useState({visible:false, x:0, y:0, carId:null});
+  const ctxCar = ctxMenu.carId ? cars.find(c=>c.id===ctxMenu.carId) : null;
+  const closeCtx = () => setCtxMenu(m=>({...m,visible:false,carId:null}));
+  useEffect(()=>{
+    if (!ctxMenu.visible) return;
+    const close = e => { if(!e.target.closest("[data-ctxmenu]")) closeCtx(); };
+    document.addEventListener("mousedown", close);
+    return ()=>document.removeEventListener("mousedown", close);
+  }, [ctxMenu.visible]);
 
   const handleDragStart = (e, car) => {
     setDraggingId(car.id);
@@ -1143,7 +1169,12 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
                     onDragStart={handleDragStart}
                     isDragging={draggingId===car.id}
                     isGhost={false}
-                    dark={dark}/>
+                    dark={dark}
+                    onContextMenu={(e,c)=>{
+                      e.preventDefault();
+                      const vp = {x:Math.min(e.clientX,window.innerWidth-220), y:Math.min(e.clientY,window.innerHeight-220)};
+                      setCtxMenu({visible:true,x:vp.x,y:vp.y,carId:c.id});
+                    }}/>
                 ))}
                 {isOver && draggingId && <KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false} dark={dark}/>}
                 {col.length===0&&!isOver&&<div style={{textAlign:"center",color:dark?"#1e293b":"#cbd5e1",fontSize:"12px",padding:"20px 0"}}>—</div>}
@@ -1177,6 +1208,55 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ── Right-click context menu (desktop) ── */}
+      {ctxMenu.visible && ctxCar && (
+        <div data-ctxmenu="1" style={{
+          position:"fixed", top:ctxMenu.y, left:ctxMenu.x, zIndex:9000,
+          background:dark?"#0f172a":"#ffffff",
+          border:`1px solid ${dark?"#334155":"#e2e8f0"}`,
+          borderRadius:"10px", minWidth:"200px", padding:"6px",
+          boxShadow:"0 8px 32px rgba(0,0,0,0.4)",
+          userSelect:"none",
+        }}>
+          {/* Car label */}
+          <div style={{padding:"6px 10px 8px",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,marginBottom:"4px"}}>
+            <div style={{fontSize:"12px",fontWeight:800,color:dark?"#f1f5f9":"#1e293b",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",lineHeight:1.2}}>
+              {ctxCar.year} {ctxCar.make} {ctxCar.model}
+            </div>
+            <div style={{fontSize:"10px",color:dark?"#475569":"#94a3b8",fontFamily:"monospace",marginTop:"2px"}}>#{ctxCar.stockNo}</div>
+          </div>
+          {/* Mark as Sold */}
+          {ctxCar.stage!=="sold" && (
+            <button onClick={()=>{ onMarkSold(ctxCar.id); closeCtx(); }}
+              style={{display:"flex",alignItems:"center",gap:"8px",width:"100%",padding:"8px 10px",background:"none",border:"none",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:700,color:dark?"#818cf8":"#4f46e5",textAlign:"left"}}
+              onMouseEnter={e=>e.currentTarget.style.background=dark?"#1e293b":"#ede9fe"}
+              onMouseLeave={e=>e.currentTarget.style.background="none"}>
+              🏁 Mark as Sold
+            </button>
+          )}
+          {/* Divider */}
+          <div style={{height:"1px",background:dark?"#1e293b":"#e2e8f0",margin:"4px 0"}}/>
+          {/* Toggles */}
+          {[
+            {key:"partsHold",     icon:"🔧", label:"Parts Hold"},
+            {key:"needsBodyWork", icon:"🎨", label:"Needs Body Work"},
+            {key:"upForSale",     icon:"🌐", label:"Online"},
+            {key:"noPlates",      icon:"🪪", label:"No Plates"},
+          ].map(({key,icon,label})=>{
+            const active = !!ctxCar[key];
+            return (
+              <button key={key} onClick={()=>onToggleProp(ctxCar.id, key)}
+                style={{display:"flex",alignItems:"center",gap:"8px",width:"100%",padding:"7px 10px",background:active?(dark?"#1e293b":"#f1f5f9"):"none",border:"none",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:active?700:500,color:active?(dark?"#f1f5f9":"#1e293b"):(dark?"#64748b":"#64748b"),textAlign:"left"}}
+                onMouseEnter={e=>e.currentTarget.style.background=dark?"#1e293b":"#f8fafc"}
+                onMouseLeave={e=>e.currentTarget.style.background=active?(dark?"#1e293b":"#f1f5f9"):"none"}>
+                <span style={{fontSize:"13px"}}>{active?"☑":"☐"}</span>
+                <span>{icon} {label}</span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1360,7 +1440,8 @@ export default function ReconDashboard() {
       if (allResults.length > 0) {
         const fresh = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:parseNotes("Notes")};
+          const rawStage=p["Stage"]?.select?.name||"fresh";
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -1424,7 +1505,8 @@ export default function ReconDashboard() {
       if (allResults.length > 0) {
         const mapped = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:parseNotes("Notes")};
+          const rawStage=p["Stage"]?.select?.name||"fresh";
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -1496,6 +1578,39 @@ export default function ReconDashboard() {
       if(notionMode) saveNotion(updated);
       // Fire confetti on sold
       if(c.stage!=="sold" && newStage==="sold") setTimeout(()=>setConfetti(true),50);
+      return updated;
+    }));
+  };
+
+  // ── Right-click: mark directly as sold ────────────────────────────────────
+  const handleMarkSold = (carId) => {
+    const car = cars.find(c=>c.id===carId);
+    if (!car || car.stage==="sold") return;
+    const fromStage = car.stage;
+    const today = new Date().toISOString().split("T")[0];
+    setCars(cs=>cs.map(c=>{
+      if (c.id!==carId) return c;
+      const st = {...(c.stageTimes||{})};
+      if (!st.sold) st.sold = today;
+      const updated = {...c, stage:"sold", stageTimes:st, soldDate:c.soldDate||today};
+      if (notionMode) saveNotion(updated);
+      return updated;
+    }));
+    setTimeout(()=>setConfetti(true), 50);
+    const carName = car ? `${car.year} ${car.make} ${car.model}` : "Vehicle";
+    setSwipeUndo(prev=>{
+      if (prev?.timerId) clearTimeout(prev.timerId);
+      const timerId = setTimeout(()=>setSwipeUndo(null), 8000);
+      return {msg:`${carName} → Sold`, carId, fromStage, nextStageId:"sold", clearedFields:{}, timerId};
+    });
+  };
+
+  // ── Right-click: toggle a boolean property ────────────────────────────────
+  const handleToggleProp = (carId, key) => {
+    setCars(cs=>cs.map(c=>{
+      if (c.id!==carId) return c;
+      const updated = {...c, [key]:!c[key]};
+      if (notionMode) saveNotion(updated);
       return updated;
     }));
   };
@@ -1850,7 +1965,7 @@ export default function ReconDashboard() {
         {loading
           ? <div style={{textAlign:"center",padding:"60px",color:dark?"#334155":"#94a3b8",fontSize:"14px"}}>Loading from Notion…</div>
           : view==="kanban"
-            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} dark={dark}/>
+            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark}/>
             : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
         }
       </div>
