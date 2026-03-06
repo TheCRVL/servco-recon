@@ -23,13 +23,13 @@ const PIPELINE_STAGES = STAGES.filter(s => s.id !== "sold");
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const MOCK = [
-  { id:"1", stockNo:"GVA05952", vin:"1FTBR1C80RKA05952", year:"2024", make:"Ford",   model:"Transit",      keys:"2", miles:"8,923",  acv:"$24,500", rw:"R", titleState:"HI", payoffBank:"Ally", acquiredDate:"2026-01-28", payoffSent:"2026-02-01", titleRcvd:"2026-02-08", sentDMV:"2026-02-09", spiTitle:"2026-02-18", regExp:"2026-12-01", scExp:"2026-11-15", inSvc:"2026-02-10", svcDone:"2026-02-13", bodyShop:"",         detail:"2026-02-14", pics:"2026-02-15", frontline:"2026-02-16", soldDate:"", stage:"frontline",  notes:[{text:"Detail and photos done. Frontline ready.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-28",service:"2026-02-10",detail:"2026-02-14",photos:"2026-02-15",frontline:"2026-02-16"} },
-  { id:"2", stockNo:"WKA305P",  vin:"1N6BA1F42RN305002", year:"2016", make:"Nissan", model:"NV Passenger", keys:"1", miles:"83,422", acv:"$8,200",  rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-03-10", scExp:"2026-02-10", inSvc:"2026-02-20", svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"service",    notes:[{text:"Going in next available on heavy duty rack.",author:"Conrad",date:"2026-02-28"},{text:"HVAC heaterhose ordered from dealer.",author:"Lyie B",date:"2025-12-15"}], stageTimes:{fresh:"2026-01-20",service:"2026-02-20"} },
-  { id:"3", stockNo:"SFB53904", vin:"1C6JJTBG5NL153904", year:"2022", make:"Jeep",   model:"Gladiator",    keys:"2", miles:"62,088", acv:"$31,000", rw:"R", titleState:"ML", payoffBank:"Ally", acquiredDate:"2026-02-10", payoffSent:"2026-02-12", titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-01-15", scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"title_work", notes:[{text:"Mainland bank — Ally. Payoff check mailed 2/12.",author:"Michelle P",date:"2026-02-12"}], stageTimes:{fresh:"2026-02-10",title_work:"2026-02-10"} },
-  { id:"4", stockNo:"TYA22101", vin:"2T1BURHE0NC022101", year:"2023", make:"Toyota", model:"Corolla",      keys:"1", miles:"24,500", acv:"$18,750", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-15", payoffSent:"",          titleRcvd:"2026-02-22", sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"2026-02-01", inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"reg_safety", notes:[{text:"Failed safety check. Needs fresh SC before detail.",author:"Kapono",date:"2026-02-25"}], stageTimes:{fresh:"2026-02-15",reg_safety:"2026-02-22"} },
-  { id:"5", stockNo:"HNA88231", vin:"5FNYF6H09NB088231", year:"2021", make:"Honda",  model:"Pilot",        keys:"2", miles:"41,200", acv:"$22,000", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"2026-02-26", svcDone:"2026-03-01", bodyShop:"2026-03-01",detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"body_shop",  notes:[{text:"Minor bumper repair. Sent to sublet body shop.",author:"Tony",date:"2026-03-01"}], stageTimes:{fresh:"2026-02-20",service:"2026-02-26",body_shop:"2026-03-01"} },
-  { id:"6", stockNo:"MZA91045", vin:"JM3KFBCM1L0391045", year:"2020", make:"Mazda",  model:"CX-5",         keys:"1", miles:"55,100", acv:"$14,200", rw:"W", titleState:"HI", payoffBank:"",     acquiredDate:"2026-03-01", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"fresh",      notes:[{text:"Just acquired. Decide R or W by tomorrow.",author:"Kapono",date:"2026-03-01"}], stageTimes:{fresh:"2026-03-01"} },
-  { id:"7", stockNo:"KIA77432",  vin:"5XXG14J27PG077432", year:"2023", make:"Kia",    model:"Sportage",     keys:"2", miles:"19,800", acv:"$26,500", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-10", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"2026-02-01", soldDate:"2026-02-15", stage:"sold",       notes:[{text:"Sold 2/15. Deal funded.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-10",frontline:"2026-02-01",sold:"2026-02-15"} },
+  { id:"1", stockNo:"GVA05952", vin:"1FTBR1C80RKA05952", year:"2024", make:"Ford",   model:"Transit",      keys:"2", miles:"8,923",  acv:"$24,500", rw:"R", titleState:"HI", payoffBank:"Ally", acquiredDate:"2026-01-28", payoffSent:"2026-02-01", titleRcvd:"2026-02-08", sentDMV:"2026-02-09", spiTitle:"2026-02-18", regExp:"2026-12-01", scExp:"2026-11-15", inSvc:"2026-02-10", svcDone:"2026-02-13", bodyShop:"",         detail:"2026-02-14", pics:"2026-02-15", frontline:"2026-02-16", soldDate:"", stage:"frontline",  notes:[{text:"Detail and photos done. Frontline ready.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-28",service:"2026-02-10",detail:"2026-02-14",photos:"2026-02-15",frontline:"2026-02-16"}, partsHold:false,needsBodyWork:false,upForSale:false },
+  { id:"2", stockNo:"WKA305P",  vin:"1N6BA1F42RN305002", year:"2016", make:"Nissan", model:"NV Passenger", keys:"1", miles:"83,422", acv:"$8,200",  rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-03-10", scExp:"2026-02-10", inSvc:"2026-02-20", svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"service",    notes:[{text:"Going in next available on heavy duty rack.",author:"Conrad",date:"2026-02-28"},{text:"HVAC heaterhose ordered from dealer.",author:"Lyie B",date:"2025-12-15"}], partsHold:false,needsBodyWork:false,upForSale:false, stageTimes:{fresh:"2026-01-20",service:"2026-02-20"} },
+  { id:"3", stockNo:"SFB53904", vin:"1C6JJTBG5NL153904", year:"2022", make:"Jeep",   model:"Gladiator",    keys:"2", miles:"62,088", acv:"$31,000", rw:"R", titleState:"ML", payoffBank:"Ally", acquiredDate:"2026-02-10", payoffSent:"2026-02-12", titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-01-15", scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"title_work", notes:[{text:"Mainland bank — Ally. Payoff check mailed 2/12.",author:"Michelle P",date:"2026-02-12"}], partsHold:false,needsBodyWork:false,upForSale:false, stageTimes:{fresh:"2026-02-10",title_work:"2026-02-10"} },
+  { id:"4", stockNo:"TYA22101", vin:"2T1BURHE0NC022101", year:"2023", make:"Toyota", model:"Corolla",      keys:"1", miles:"24,500", acv:"$18,750", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-15", payoffSent:"",          titleRcvd:"2026-02-22", sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"2026-02-01", inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"reg_safety", notes:[{text:"Failed safety check. Needs fresh SC before detail.",author:"Kapono",date:"2026-02-25"}], partsHold:false,needsBodyWork:false,upForSale:false, stageTimes:{fresh:"2026-02-15",reg_safety:"2026-02-22"} },
+  { id:"5", stockNo:"HNA88231", vin:"5FNYF6H09NB088231", year:"2021", make:"Honda",  model:"Pilot",        keys:"2", miles:"41,200", acv:"$22,000", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"2026-02-26", svcDone:"2026-03-01", bodyShop:"2026-03-01",detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"body_shop",  notes:[{text:"Minor bumper repair. Sent to sublet body shop.",author:"Tony",date:"2026-03-01"}], partsHold:false,needsBodyWork:false,upForSale:false, stageTimes:{fresh:"2026-02-20",service:"2026-02-26",body_shop:"2026-03-01"} },
+  { id:"6", stockNo:"MZA91045", vin:"JM3KFBCM1L0391045", year:"2020", make:"Mazda",  model:"CX-5",         keys:"1", miles:"55,100", acv:"$14,200", rw:"W", titleState:"HI", payoffBank:"",     acquiredDate:"2026-03-01", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"fresh",      notes:[{text:"Just acquired. Decide R or W by tomorrow.",author:"Kapono",date:"2026-03-01"}], partsHold:false,needsBodyWork:false,upForSale:false, stageTimes:{fresh:"2026-03-01"} },
+  { id:"7", stockNo:"KIA77432",  vin:"5XXG14J27PG077432", year:"2023", make:"Kia",    model:"Sportage",     keys:"2", miles:"19,800", acv:"$26,500", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-10", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"2026-02-01", soldDate:"2026-02-15", stage:"sold",       notes:[{text:"Sold 2/15. Deal funded.",author:"Kapono",date:"2026-02-15"}], partsHold:false,needsBodyWork:false,upForSale:false, stageTimes:{fresh:"2026-01-10",frontline:"2026-02-01",sold:"2026-02-15"} },
 ];
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -65,6 +65,9 @@ function getIssueTags(car, dark=false) {
     if (car.keys === "1")               tags.push({ label:"1 KEY",          color:"#0369a1", bg:"#0c2340" });
     if (daysSince(car.acquiredDate) > 21 && !["frontline","sold"].includes(car.stage))
                                         tags.push({ label:"21d+ IN RECON",  color:"#b91c1c", bg:"#3f0e0e" });
+    if (car.partsHold)                  tags.push({ label:"PARTS HOLD",     color:"#f59e0b", bg:"#2d1b00" });
+    if (car.needsBodyWork)              tags.push({ label:"NEEDS BODY WORK", color:"#22d3ee", bg:"#0a2030" });
+    if (car.upForSale)                  tags.push({ label:"UP FOR SALE",     color:"#4ade80", bg:"#052e16" });
   } else {
     if (!car.stockNo || car.stockNo.trim() === "") tags.push({ label:"NO STOCK #",     color:"#ffffff", bg:"#d97706" });
     if (isExpired(car.regExp))          tags.push({ label:"REG EXP",        color:"#ffffff", bg:"#dc2626" });
@@ -75,6 +78,9 @@ function getIssueTags(car, dark=false) {
     if (car.keys === "1")               tags.push({ label:"1 KEY",          color:"#ffffff", bg:"#0369a1" });
     if (daysSince(car.acquiredDate) > 21 && !["frontline","sold"].includes(car.stage))
                                         tags.push({ label:"21d+ IN RECON",  color:"#ffffff", bg:"#dc2626" });
+    if (car.partsHold)                  tags.push({ label:"PARTS HOLD",     color:"#ffffff", bg:"#d97706" });
+    if (car.needsBodyWork)              tags.push({ label:"NEEDS BODY WORK", color:"#ffffff", bg:"#0891b2" });
+    if (car.upForSale)                  tags.push({ label:"UP FOR SALE",     color:"#ffffff", bg:"#16a34a" });
   }
   return tags;
 }
@@ -187,6 +193,9 @@ function carToNotion(car) {
     "Svc Done":      dt(car.svcDone),     "Body Shop":   dt(car.bodyShop),
     "Detail":        dt(car.detail),      "Pics":        dt(car.pics),
     "Frontline":     dt(car.frontline),   "Sold Date":   dt(car.soldDate),
+    "Parts Hold":    {checkbox: !!car.partsHold},
+    "Needs Body Work":{checkbox: !!car.needsBodyWork},
+    "Up For Sale":   {checkbox: !!car.upForSale},
   };
 }
 
@@ -307,17 +316,55 @@ function ModalSelect({label, fkey, options, form, set, dark=false}) {
   );
 }
 function ModalExpField({label, fkey, form, set, dark=false}) {
+  // Convert YYYY-MM-DD → MM/YY for display
+  const toMMYY = d => {
+    if (!d) return "";
+    const m = d.match(/^(\d{4})-(\d{2})/);
+    return m ? `${m[2]}/${m[1].slice(2)}` : "";
+  };
+  // Convert MM/YY → YYYY-MM-DD (last day of that month)
+  const fromMMYY = s => {
+    const m = s.match(/^(\d{2})\/(\d{2})$/);
+    if (!m) return "";
+    const month = m[1], year = "20" + m[2];
+    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+    return `${year}-${month}-${String(lastDay).padStart(2,"0")}`;
+  };
+  const [raw, setRaw] = useState(toMMYY(form[fkey]));
+  // Sync if external form value changes (e.g. car switch)
+  const prevKey = useRef(fkey + form[fkey]);
+  if (prevKey.current !== fkey + form[fkey]) {
+    prevKey.current = fkey + form[fkey];
+    const synced = toMMYY(form[fkey]);
+    if (synced !== raw) setRaw(synced);
+  }
   const expired = isExpired(form[fkey]);
+  const handleChange = e => {
+    let v = e.target.value.replace(/[^0-9/]/g,"");
+    // Auto-insert slash: if user typed 2nd digit without slash, insert it
+    if (v.length === 2 && raw.length === 1) v = v + "/";
+    if (v.length > 5) return;
+    setRaw(v);
+    const converted = fromMMYY(v);
+    if (converted) set(fkey, converted);
+    else if (v === "") set(fkey, "");
+  };
   return (
     <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
       <label style={{fontSize:"10px",color:expired?"#dc2626":dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
         {label}{expired?" ⚠ EXPIRED":""}
       </label>
-      <input type="date" value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)}
+      <input
+        type="text"
+        placeholder="MM/YY"
+        maxLength={5}
+        value={raw}
+        onChange={handleChange}
         style={{...input({},dark),
           border:expired?"1px solid #dc2626":dark?"1px solid #334155":"1px solid #e2e8f0",
           color:expired?"#dc2626":dark?"#e2e8f0":"#1e293b",
-          background:expired?(dark?"#3f0e0e":"#fee2e2"):dark?"#1e293b":"#f8fafc"
+          background:expired?(dark?"#3f0e0e":"#fee2e2"):dark?"#1e293b":"#f8fafc",
+          letterSpacing:"0.08em", textAlign:"center",
         }}/>
     </div>
   );
@@ -329,6 +376,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [regSafetyWarn, setRegSafetyWarn] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [modalTab, setModalTab]           = useState("main");
 
   // Freeze the original car snapshot on first render — compare against this
   // rather than the car prop (which may drift if parent re-renders)
@@ -415,6 +463,62 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
           </div>
         )}
 
+        {/* Tab bar */}
+        <div style={{display:"flex",gap:"4px",marginBottom:"16px",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingBottom:"0"}}>
+          {["main","toggles"].map(tab=>(
+            <button key={tab} onClick={()=>setModalTab(tab)} style={{
+              background:"none",border:"none",borderBottom:`2px solid ${modalTab===tab?(dark?"#38bdf8":"#2563eb"):"transparent"}`,
+              color:modalTab===tab?(dark?"#38bdf8":"#2563eb"):(dark?"#64748b":"#94a3b8"),
+              fontWeight:700,fontSize:"11px",letterSpacing:"0.08em",textTransform:"uppercase",
+              padding:"8px 14px",cursor:"pointer",transition:"all 0.15s",fontFamily:"inherit",
+              marginBottom:"-1px",
+            }}>
+              {tab==="main"?"Details":"⚙ Toggles"}
+            </button>
+          ))}
+        </div>
+
+        {modalTab==="toggles" ? (
+          /* ── TOGGLES TAB ── */
+          <div style={{display:"flex",flexDirection:"column",gap:"12px",paddingBottom:"16px"}}>
+            <div style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.1em",marginBottom:"4px"}}>MANUAL FLAGS — no automatic pipeline trigger</div>
+            {[
+              {key:"partsHold",     label:"Parts Hold",      desc:"Waiting on a part before recon can continue",  color:"#f59e0b"},
+              {key:"needsBodyWork", label:"Needs Body Work",  desc:"Requires body repair — route to body shop",     color:"#22d3ee"},
+              {key:"upForSale",     label:"Up For Sale",      desc:"Actively listed / available for purchase",      color:"#4ade80"},
+            ].map(({key,label,desc,color})=>(
+              <div key={key}
+                onClick={()=>set(key,!form[key])}
+                style={{
+                  display:"flex",alignItems:"center",justifyContent:"space-between",
+                  background:form[key]?(dark?color+"22":color+"18"):(dark?"#0f172a":"#f8fafc"),
+                  border:`1px solid ${form[key]?color:(dark?"#1e293b":"#e2e8f0")}`,
+                  borderRadius:"10px",padding:"12px 14px",cursor:"pointer",transition:"all 0.15s",
+                  userSelect:"none",
+                }}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:"13px",color:form[key]?color:(dark?"#cbd5e1":"#1e293b"),marginBottom:"2px"}}>{label}</div>
+                  <div style={{fontSize:"11px",color:dark?"#475569":"#94a3b8"}}>{desc}</div>
+                </div>
+                {/* Toggle switch */}
+                <div style={{
+                  width:"40px",height:"22px",borderRadius:"11px",flexShrink:0,
+                  background:form[key]?color:(dark?"#334155":"#cbd5e1"),
+                  position:"relative",transition:"background 0.2s",
+                }}>
+                  <div style={{
+                    position:"absolute",top:"3px",left:form[key]?"21px":"3px",
+                    width:"16px",height:"16px",borderRadius:"50%",background:"#fff",
+                    transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)",
+                  }}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+        /* ── MAIN DETAILS TAB ── */
+        <div>
+
         {/* Stage */}
         <div style={{marginBottom:"16px"}}>
           <div style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",marginBottom:"8px"}}>STAGE</div>
@@ -493,6 +597,9 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
         {/* Notes */}
         <div style={{borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"14px"}}>
           <NoteThread notes={form.notes||[]} onAdd={note=>setForm(f=>({...f,notes:[...(f.notes||[]),note]}))} dark={dark}/></div>
+
+        </div>{/* end main tab inner wrapper */}
+        </div>){/* end tab conditional */}
 
         {/* Actions */}
         {confirmDelete ? (
@@ -852,16 +959,44 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
   const headers = ["Stock No","VIN","Year","Make","Model","Miles","ACV","R/W","Title","Keys","Issues","Payoff Sent","Title RCVD","Sent DMV","SPI Title","Reg Exp","SC Exp","In Svc","Svc Done","Body Shop","Detail","Photos","Frontline","Sold","T2L","Stage"];
   const dateFields = ["payoffSent","titleRcvd","sentDMV","spiTitle","regExp","scExp","inSvc","svcDone","bodyShop","detail","pics","frontline","soldDate"];
   const expiredFields = new Set(["regExp","scExp"]);
+  // Columns that support sorting → map header label to car field key
+  const SORTABLE = {"Stock No":"stockNo","VIN":"vin","Make":"make","Model":"model"};
+  const [sortBy, setSortBy] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
+  const toggleSort = col => {
+    if (!SORTABLE[col]) return;
+    const field = SORTABLE[col];
+    setSortBy(prev => {
+      if (prev === field) { setSortDir(d => d==="asc"?"desc":"asc"); return field; }
+      setSortDir("asc"); return field;
+    });
+  };
+  const sorted = [...cars].sort((a,b)=>{
+    if (!sortBy) return 0;
+    const av = (a[sortBy]||"").toString().toLowerCase();
+    const bv = (b[sortBy]||"").toString().toLowerCase();
+    return sortDir==="asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+  });
   const drag = useDragScroll();
   return (
     <div ref={drag.ref} onMouseDown={drag.onMouseDown} onMouseMove={drag.onMouseMove} onMouseUp={drag.onMouseUp} onMouseLeave={drag.onMouseLeave}
       style={{overflowX:"auto",WebkitOverflowScrolling:"touch",cursor:"grab",scrollbarWidth:"thin",background:dark?"transparent":"#ffffff",borderRadius:"8px",border:dark?"none":"1px solid #e2e8f0"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px",minWidth:"900px"}}>
         <thead>
-          <tr>{headers.map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",color:dark?"#475569":"#64748b",fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,whiteSpace:"nowrap",background:dark?"#060b14":"#f8fafc"}}>{h}</th>)}</tr>
+          <tr>{headers.map(h=>{
+            const isSortable = !!SORTABLE[h];
+            const isActive   = sortBy === SORTABLE[h];
+            return (
+              <th key={h}
+                onClick={()=>toggleSort(h)}
+                style={{padding:"8px 10px",textAlign:"left",color:isActive?(dark?"#38bdf8":"#2563eb"):(dark?"#475569":"#64748b"),fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,whiteSpace:"nowrap",background:dark?"#060b14":"#f8fafc",cursor:isSortable?"pointer":"default",userSelect:"none",transition:"color 0.15s"}}>
+                {h}{isSortable ? (isActive ? (sortDir==="asc"?" ↑":" ↓") : " ↕") : ""}
+              </th>
+            );
+          })}</tr>
         </thead>
         <tbody>
-          {cars.map((car,i)=>{
+          {sorted.map((car,i)=>{
             const days  = daysSince(car.acquiredDate);
             const badge = t2lBadge(days);
             const s     = stageOf(car.stage);
@@ -895,7 +1030,10 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
                   const expired = expiredFields.has(k)&&isExpired(car[k]);
                   return (
                     <td key={k} style={{padding:"8px 10px",color:expired?"#f87171":car[k]?(dark?"#60a5fa":"#2563eb"):(dark?"#1e293b":"#cbd5e1"),background:expired?(dark?"#3f0e0e":"#fff1f2"):"transparent",fontFamily:"monospace",whiteSpace:"nowrap",fontWeight:expired?700:400}}>
-                      {fmtDate(car[k])||"—"}{expired?" ⚠":""}
+                      {expiredFields.has(k)
+                        ? ((m=>m?`${m[2]}/${m[1].slice(2)}`:"—")(car[k]?.match(/^(\d{4})-(\d{2})/)))||"—"
+                        : (fmtDate(car[k])||"—")}
+                      {expired?" ⚠":""}
                     </td>
                   );
                 })}
@@ -995,7 +1133,7 @@ export default function ReconDashboard() {
       if (data.results) {
         const fresh = data.results.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:!!(p["Parts Hold"]?.checkbox),needsBodyWork:!!(p["Needs Body Work"]?.checkbox),upForSale:!!(p["Up For Sale"]?.checkbox),notes:[]};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -1052,7 +1190,7 @@ export default function ReconDashboard() {
       if (data.results) {
         const mapped = data.results.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:!!(p["Parts Hold"]?.checkbox),needsBodyWork:!!(p["Needs Body Work"]?.checkbox),upForSale:!!(p["Up For Sale"]?.checkbox),notes:[]};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
