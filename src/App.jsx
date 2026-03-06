@@ -1115,6 +1115,15 @@ export default function ReconDashboard() {
     return () => clearInterval(id);
   }, [notionMode, silentPoll]);
 
+  // Shift+V → open Add Vehicle modal
+  useEffect(() => {
+    const handler = e => {
+      if (e.shiftKey && e.key === "V" && !adding && !selected && !splash) setAdding(true);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [adding, selected, splash]);
+
   // Tick the "synced X ago" label every 5 seconds
   useEffect(() => {
     const id = setInterval(() => {
