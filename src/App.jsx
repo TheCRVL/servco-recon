@@ -226,8 +226,8 @@ function initStageTimes(car) {
 function StatsBar({ cars, dark=false }) {
   const activeCarsNoSold = cars.filter(c=>c.stage!=="sold");
   const frontline  = cars.filter(c=>c.stage==="frontline").length;
-  const stuck      = cars.filter(c=>daysSince(c.acquiredDate)>21&&![\"frontline\",\"sold\"].includes(c.stage)).length;
-  const inProgress = cars.filter(c=>![\"frontline\",\"fresh\",\"sold\"].includes(c.stage)).length;
+  const stuck      = cars.filter(c=>daysSince(c.acquiredDate)>21&&!["frontline","sold"].includes(c.stage)).length;
+  const inProgress = cars.filter(c=>!["frontline","fresh","sold"].includes(c.stage)).length;
   const doneCars   = cars.filter(c=>c.frontline&&c.acquiredDate);
   const avgT2L     = doneCars.length ? Math.round(doneCars.reduce((s,c)=>s+daysSince(c.acquiredDate),0)/doneCars.length) : null;
   const Stat = ({label,value,color}) => (
