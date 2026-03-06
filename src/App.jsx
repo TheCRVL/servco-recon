@@ -1142,7 +1142,7 @@ export default function ReconDashboard() {
 
   // ─── SPLASH SCREEN ──────────────────────────────────────────────────────────
   if (splash) return (
-    <div style={{minHeight:"100vh",background:"#060b14",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','DM Mono',sans-serif",padding:"24px"}}>
+    <div style={{minHeight:"100vh",background:"#ffffff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','DM Mono',sans-serif",padding:"24px"}}>
       <style>{"@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600;800&display=swap');*{box-sizing:border-box;}"}</style>
 
       {/* Logo */}
