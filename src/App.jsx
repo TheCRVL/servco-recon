@@ -209,18 +209,29 @@ function stageTimeBadge(days, dark=false) {
   if (days < 15) return { bg:"#fef9c3", fg:"#b45309", label:days+"d" };
   return              { bg:"#fee2e2", fg:"#b91c1c", label:days+"d ⚠" };
 }
+// Maps each stage to its actual date field. Stages without a date field use acquiredDate.
+const STAGE_DATE_FIELD = {
+  service:    "inSvc",
+  body_shop:  "bodyShop",
+  detail:     "detail",
+  photos:     "pics",
+  frontline:  "frontline",
+  sold:       "soldDate",
+};
 function initStageTimes(car) {
   const t = {};
   const fill = (stage, date) => { if (!t[stage] && date) t[stage] = date; };
+  // fresh / title_work / reg_safety have no dedicated date field — use acquiredDate
   fill("fresh",      car.acquiredDate);
   fill("title_work", car.acquiredDate);
   fill("reg_safety", car.acquiredDate);
-  fill("service",    car.inSvc || car.acquiredDate);
-  fill("body_shop",  car.bodyShop || car.acquiredDate);
-  fill("detail",     car.detail || car.acquiredDate);
-  fill("photos",     car.pics || car.acquiredDate);
-  fill("frontline",  car.frontline || car.acquiredDate);
-  fill("sold",       car.soldDate || car.acquiredDate);
+  // All other stages: ONLY use their actual date field — never fall back to acquiredDate
+  fill("service",   car.inSvc);
+  fill("body_shop", car.bodyShop);
+  fill("detail",    car.detail);
+  fill("photos",    car.pics);
+  fill("frontline", car.frontline);
+  fill("sold",      car.soldDate);
   return t;
 }
 
@@ -371,7 +382,16 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
       const scOk  = form.scExp  && !isExpired(form.scExp);
       if (regOk && scOk) { setRegSafetyWarn(true); return; }
     }
-    setForm(f => ({...f, stage: stageId}));
+    const today = new Date().toISOString().split("T")[0];
+    const dateField = STAGE_DATE_FIELD[stageId];
+    setForm(f => {
+      const st = {...(f.stageTimes||{})};
+      if (!st[stageId]) st[stageId] = today;
+      const updates = {stage: stageId, stageTimes: st};
+      // Auto-fill the stage's date field if not already set
+      if (dateField && !f[dateField]) updates[dateField] = today;
+      return {...f, ...updates};
+    });
     setRegSafetyWarn(false);
   };
 
@@ -1124,11 +1144,13 @@ export default function ReconDashboard() {
 
   const handleSave = updated => {
     const prev = cars.find(c=>c.id===updated.id);
-    // Track stage entry time if stage changed
+    // Track stage entry time + auto-fill date field if stage changed
     if (prev && prev.stage !== updated.stage) {
       const today = new Date().toISOString().split("T")[0];
       const st = {...(updated.stageTimes||prev.stageTimes||{})};
       if (!st[updated.stage]) st[updated.stage] = today;
+      const dateField = STAGE_DATE_FIELD[updated.stage];
+      if (dateField && !updated[dateField]) updated[dateField] = today;
       updated = {...updated, stageTimes:st};
     }
     // Fire confetti when moved to sold
@@ -1161,7 +1183,9 @@ export default function ReconDashboard() {
       const st = {...(c.stageTimes||{})};
       if (!st[newStage]) st[newStage] = today;
       const updated = {...c, stage:newStage, stageTimes:st};
-      if(newStage==="sold" && !updated.soldDate) updated.soldDate = today;
+      // Auto-fill the stage's date field if not already set
+      const dateField = STAGE_DATE_FIELD[newStage];
+      if (dateField && !updated[dateField]) updated[dateField] = today;
       if(notionMode) saveNotion(updated);
       // Fire confetti on sold
       if(c.stage!=="sold" && newStage==="sold") setTimeout(()=>setConfetti(true),50);
