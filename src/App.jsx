@@ -35,10 +35,20 @@ const MOCK = [
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const TODAY       = new Date(); TODAY.setHours(0,0,0,0);
 const daysSince   = d => d ? Math.floor((Date.now()-new Date(d).getTime())/86400000) : null;
-const fmtDate     = d => d ? new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
+const fmtDate     = d => { if(!d) return ""; if(d.includes('/')&&d.length<=5) return d; return new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric"}); };
 const stageOf     = id => STAGES.find(s=>s.id===id)||STAGES[0];
 const soldDaysAgo = car => car.soldDate ? Math.floor((Date.now()-new Date(car.soldDate).getTime())/86400000) : null;
-const isExpired   = d => { if(!d) return false; const e=new Date(d); e.setHours(0,0,0,0); return e<TODAY; };
+// isExpired handles both "MM/YY" (exp date = end of that month) and legacy "YYYY-MM-DD"
+const isExpired   = d => {
+  if(!d) return false;
+  if(d.includes('/')&&d.length<=5) {
+    const [mm,yy] = d.split('/');
+    const month = parseInt(mm,10), year = 2000+parseInt(yy||'0',10);
+    if(!month||!year) return false;
+    return new Date(year, month, 1) <= TODAY; // expired when first of NEXT month arrives
+  }
+  const e=new Date(d); e.setHours(0,0,0,0); return e<TODAY;
+};
 const getDupVINs  = cars => {
   const seen={};
   cars.forEach(c=>{if(c.vin) seen[c.vin.toUpperCase()]=(seen[c.vin.toUpperCase()]||0)+1;});
@@ -171,6 +181,8 @@ async function notionFetch(path, method="GET", body=null) {
 function carToNotion(car) {
   const rt = v => ({rich_text:[{text:{content:v||""}}]});
   const dt = v => v ? {date:{start:v}} : {date:null};
+  // Convert MM/YY → YYYY-MM-01 for Notion date field storage
+  const expDt = v => { if(!v) return {date:null}; if(v.includes('/')&&v.length<=5){const[mm,yy]=v.split('/'); return {date:{start:`20${yy}-${mm.padStart(2,'0')}-01`}};} return dt(v); };
   return {
     "Stock No":      {title:[{text:{content:car.stockNo||""}}]},
     "VIN":           rt(car.vin), "Year": rt(car.year), "Make": rt(car.make), "Model": rt(car.model),
@@ -180,8 +192,8 @@ function carToNotion(car) {
     "Stage":         {select:{name:car.stage||"fresh"}},
     "Acquired Date": dt(car.acquiredDate), "Payoff Sent": dt(car.payoffSent),
     "Title RCVD":    dt(car.titleRcvd),   "Sent DMV":    dt(car.sentDMV),
-    "SPI Title RCVD":dt(car.spiTitle),    "Reg Exp":     dt(car.regExp),
-    "SC Exp":        dt(car.scExp),       "In Svc":      dt(car.inSvc),
+    "SPI Title RCVD":dt(car.spiTitle),    "Reg Exp":     expDt(car.regExp),
+    "SC Exp":        expDt(car.scExp),    "In Svc":      dt(car.inSvc),
     "Svc Done":      dt(car.svcDone),     "Body Shop":   dt(car.bodyShop),
     "Detail":        dt(car.detail),      "Pics":        dt(car.pics),
     "Frontline":     dt(car.frontline),   "Sold Date":   dt(car.soldDate),
@@ -319,17 +331,28 @@ function ModalSelect({label, fkey, options, form, set, dark=false}) {
   );
 }
 function ModalExpField({label, fkey, form, set, dark=false}) {
-  const expired = isExpired(form[fkey]);
+  const val     = form[fkey]||"";
+  const expired = isExpired(val);
+  const handleChange = e => {
+    let v = e.target.value.replace(/[^0-9/]/g,"");
+    // Auto-insert slash after two digits
+    if(v.length===2&&!v.includes('/')) v=v+'/';
+    if(v.length>5) v=v.slice(0,5);
+    set(fkey, v);
+  };
+  const complete = /^\d{2}\/\d{2}$/.test(val);
+  const borderColor = expired?"#dc2626":(!val||complete)?( dark?"#334155":"#e2e8f0"):"#f59e0b";
   return (
     <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
       <label style={{fontSize:"10px",color:expired?"#dc2626":dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
         {label}{expired?" ⚠ EXPIRED":""}
       </label>
-      <input type="date" value={form[fkey]||""} onChange={e=>set(fkey,e.target.value)}
+      <input type="text" value={val} onChange={handleChange} placeholder="MM/YY" maxLength={5}
         style={{...input({},dark),
-          border:expired?"1px solid #dc2626":dark?"1px solid #334155":"1px solid #e2e8f0",
+          border:`1px solid ${borderColor}`,
           color:expired?"#dc2626":dark?"#e2e8f0":"#1e293b",
-          background:expired?(dark?"#3f0e0e":"#fee2e2"):dark?"#1e293b":"#f8fafc"
+          background:expired?(dark?"#3f0e0e":"#fee2e2"):dark?"#1e293b":"#f8fafc",
+          fontFamily:"monospace", letterSpacing:"0.05em",
         }}/>
     </div>
   );
@@ -1061,8 +1084,8 @@ export default function ReconDashboard() {
       }
       if (allResults.length > 0) {
         const fresh = allResults.map(page=>{
-          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false;
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),notes:[]};
+          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),notes:[]};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -1116,8 +1139,8 @@ export default function ReconDashboard() {
       }
       if (allResults.length > 0) {
         const mapped = allResults.map(page=>{
-          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false;
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),notes:[]};
+          const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),notes:[]};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
