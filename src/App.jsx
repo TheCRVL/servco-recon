@@ -780,8 +780,11 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
           <span style={{background:badge.bg,color:badge.fg,fontSize:"10px",fontWeight:700,fontFamily:"monospace",padding:"2px 6px",borderRadius:"4px"}}>{badge.label}</span>
         </div>
       </div>
-      {tags.length>0&&(
+      {(tags.length>0||car.pendingSync)&&(
         <div style={{display:"flex",flexWrap:"wrap",gap:"3px",marginTop:"4px"}}>
+          {car.pendingSync&&(
+            <span style={{background:"#f59e0b",color:"#ffffff",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>SYNC PENDING</span>
+          )}
           {tags.map((t,i)=>(
             <span key={i} style={{background:t.bg,color:t.color,fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",letterSpacing:"0.04em"}}>{t.label}</span>
           ))}
@@ -1021,6 +1024,9 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
                 <td style={{padding:"8px 10px",color:dark?"#94a3b8":"#64748b",textAlign:"center"}}>{car.keys}</td>
                 <td style={{padding:"6px 10px"}}>
                   <div style={{display:"flex",flexWrap:"wrap",gap:"3px"}}>
+                    {car.pendingSync&&(
+                      <span style={{background:"#f59e0b",color:"#ffffff",fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",whiteSpace:"nowrap"}}>SYNC PENDING</span>
+                    )}
                     {tags.map((t,idx)=>(
                       <span key={idx} style={{background:t.bg,color:t.color,fontSize:"9px",fontWeight:800,padding:"2px 5px",borderRadius:"3px",whiteSpace:"nowrap"}}>{t.label}</span>
                     ))}
@@ -1137,12 +1143,26 @@ export default function ReconDashboard() {
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
-        // Merge remote data with local notes & stageTimes (preserve local overrides)
-        setCars(prev => fresh.map(f => {
-          const loc = prev.find(p=>p.id===f.id);
-          return loc ? {...f, notes:loc.notes, stageTimes:loc.stageTimes||f.stageTimes} : f;
-        }));
+        // Bug 1: merge fresh with local notes/stageTimes AND keep local-only (unsaved) cars
+        setCars(prev => {
+          const merged = fresh.map(f => {
+            const loc = prev.find(p => p.id === f.id);
+            return loc ? {...f, notes: loc.notes, stageTimes: loc.stageTimes||f.stageTimes} : f;
+          });
+          const localOnly = prev.filter(p => !p.id.includes("-") && !fresh.find(f => f.id === p.id));
+          return [...merged, ...localOnly];
+        });
         setLastSynced(Date.now());
+        // Bug 2: retry any cars that failed to sync on add
+        setCars(prev => {
+          prev.filter(p => p.pendingSync).forEach(async p => {
+            try {
+              const res = await notionFetch("/pages","POST",{parent:{database_id:NOTION_DB_ID},properties:carToNotion(p)});
+              if(res.id) setCars(cs=>cs.map(c=>c.id===p.id?{...c,id:res.id,pendingSync:false}:c));
+            } catch(_) {}
+          });
+          return prev;
+        });
       }
     } catch(_) { /* silent — don't alert user on background errors */ }
   }, []);
@@ -1243,7 +1263,11 @@ export default function ReconDashboard() {
           setCars(cs=>cs.map(c=>c.id===car.id?{...c,id:notionId}:c));
           toast("✓ Added to Notion");
         }
-      } catch(e) { toast(`❌ Add failed: ${e.message}`); }
+      } catch(e) {
+        // Bug 2: keep car locally and flag for retry on next poll rather than losing it
+        setCars(cs=>cs.map(c=>c.id===car.id?{...c,pendingSync:true}:c));
+        toast("⚠ Saved locally — will retry sync");
+      }
     }
   };
   const handleDelete = id   => {
