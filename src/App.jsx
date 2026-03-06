@@ -66,6 +66,7 @@ const t2lBadge = (days, dark=false) => {
 function getIssueTags(car, dark=false) {
   const tags = [];
   if (dark) {
+    if (!car.stockNo)                   tags.push({ label:"NO STOCK #",     color:"#f472b6", bg:"#2d0a1e" });
     if (isExpired(car.regExp))          tags.push({ label:"REG EXP",        color:"#dc2626", bg:"#3f0e0e" });
     if (isExpired(car.scExp))           tags.push({ label:"SC EXP",         color:"#dc2626", bg:"#3f0e0e" });
     if (!car.titleRcvd)                 tags.push({ label:"NO TITLE RCVD",  color:"#d97706", bg:"#2d1b00" });
@@ -75,6 +76,7 @@ function getIssueTags(car, dark=false) {
     if (daysSince(car.acquiredDate) > 21 && !["frontline","sold"].includes(car.stage))
                                         tags.push({ label:"21d+ IN RECON",  color:"#b91c1c", bg:"#3f0e0e" });
   } else {
+    if (!car.stockNo)                   tags.push({ label:"NO STOCK #",     color:"#ffffff", bg:"#be185d" });
     if (isExpired(car.regExp))          tags.push({ label:"REG EXP",        color:"#ffffff", bg:"#dc2626" });
     if (isExpired(car.scExp))           tags.push({ label:"SC EXP",         color:"#ffffff", bg:"#dc2626" });
     if (!car.titleRcvd)                 tags.push({ label:"NO TITLE RCVD",  color:"#ffffff", bg:"#d97706" });
