@@ -948,7 +948,7 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
             const active   = sortCol === h;
             return (
               <th key={h} onClick={()=>handleSort(h)}
-                style={{padding:"8px 10px",textAlign:"left",color:active?(dark?"#f1f5f9":"#1e293b"):(dark?"#475569":"#64748b"),fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,whiteSpace:"nowrap",background:dark?"#060b14":"#f8fafc",cursor:sortable?"pointer":"default",userSelect:"none",borderBottom:active?`2px solid ${dark?"#38bdf8":"#1d4ed8"}`:`1px solid ${dark?"#1e293b":"#e2e8f0"}`}}>
+                style={{padding:"8px 10px",textAlign:"left",color:active?(dark?"#f1f5f9":"#1e293b"):(dark?"#475569":"#64748b"),fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",whiteSpace:"nowrap",background:dark?"#060b14":"#f8fafc",cursor:sortable?"pointer":"default",userSelect:"none",borderBottom:active?`2px solid ${dark?"#38bdf8":"#1d4ed8"}`:`1px solid ${dark?"#1e293b":"#e2e8f0"}`}}>
                 {h}{active?(sortDir==="asc"?" ↑":" ↓"):sortable?" ·":""}
               </th>
             );
