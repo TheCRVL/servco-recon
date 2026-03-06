@@ -591,9 +591,44 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, dark=false }) {
 // ─── ADD CAR MODAL ────────────────────────────────────────────────────────────
 function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
   const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:"",partsHold:false,needsBodyWork:false,upForSale:false,noPlates:false};
-  const [form,setForm] = useState(blank);
+  const [form,setForm]           = useState(blank);
+  const [decoding,setDecoding]   = useState(false);
+  const [flashFields,setFlashFields] = useState(new Set());
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const vinDup = form.vin&&form.vin.length>5&&existingVINs.has(form.vin.toUpperCase());
+
+  // VIN decode — fires whenever VIN reaches exactly 17 chars
+  useEffect(() => {
+    const vin = (form.vin||"").trim();
+    if (vin.length !== 17) return;
+    let cancelled = false;
+    setDecoding(true);
+    fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${vin}?format=json`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        const get = label => {
+          const item = (data.Results||[]).find(r=>r.Variable===label);
+          return (item?.Value && item.Value!=="Not Applicable" && item.Value!=="null") ? item.Value : "";
+        };
+        const year=get("Model Year"), make=get("Make"), model=get("Model");
+        if (year||make||model) {
+          const filled = new Set();
+          setForm(f => {
+            const u={};
+            if(year)  { u.year=year;   filled.add("year");  }
+            if(make)  { u.make=make;   filled.add("make");  }
+            if(model) { u.model=model; filled.add("model"); }
+            return {...f,...u};
+          });
+          setFlashFields(filled);
+          setTimeout(()=>setFlashFields(new Set()), 1200);
+        }
+      })
+      .catch(()=>{})
+      .finally(()=>{ if(!cancelled) setDecoding(false); });
+    return ()=>{ cancelled=true; };
+  }, [form.vin]);
   const labelColor = dark?"#64748b":"#94a3b8";
   const bg = dark?"#0f172a":"#ffffff";
   const border = dark?"#1e293b":"#e2e8f0";
@@ -612,15 +647,15 @@ function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
             <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Year</label>
-            <input value={form.year||""} onChange={e=>set("year",e.target.value)} style={input({},dark)}/>
+            <input value={form.year||""} onChange={e=>set("year",e.target.value)} style={{...input({},dark),transition:"background 1s ease",background:flashFields.has("year")?(dark?"#14532d":"#dcfce7"):dark?"#1e293b":"#f8fafc"}}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
             <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Make</label>
-            <input value={form.make||""} onChange={e=>set("make",e.target.value)} style={input({},dark)}/>
+            <input value={form.make||""} onChange={e=>set("make",e.target.value)} style={{...input({},dark),transition:"background 1s ease",background:flashFields.has("make")?(dark?"#14532d":"#dcfce7"):dark?"#1e293b":"#f8fafc"}}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
             <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Model</label>
-            <input value={form.model||""} onChange={e=>set("model",e.target.value)} style={input({},dark)}/>
+            <input value={form.model||""} onChange={e=>set("model",e.target.value)} style={{...input({},dark),transition:"background 1s ease",background:flashFields.has("model")?(dark?"#14532d":"#dcfce7"):dark?"#1e293b":"#f8fafc"}}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
             <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Miles</label>
@@ -643,6 +678,9 @@ function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
             )}
             {form.vin&&form.vin.length>17&&(
               <div style={{fontSize:"11px",color:"#f87171",fontWeight:700,marginTop:"2px"}}>⚠ VIN cannot exceed 17 characters — currently {form.vin.length}/17</div>
+            )}
+            {form.vin&&form.vin.length===17&&decoding&&(
+              <div style={{fontSize:"11px",color:dark?"#60a5fa":"#2563eb",fontWeight:600,marginTop:"2px"}}>⟳ Decoding VIN…</div>
             )}
             {form.vin&&form.vin.length===17&&vinDup&&(
               <div style={{fontSize:"11px",color:"#fb923c",fontWeight:700,marginTop:"2px"}}>⚠ This VIN already exists in inventory — possible duplicate or re-acquired vehicle.</div>
