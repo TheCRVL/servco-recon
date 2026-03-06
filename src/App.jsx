@@ -466,9 +466,10 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
     : `Move to ${STAGES.find(s=>s.id===nextSwipeStage)?.label||nextSwipeStage}`)
     : "";
 
-  // Discovery hint — nudge animation on first open
+  // Discovery hint — nudge animation on first open (mobile only)
   useEffect(()=>{
-    if (!isMobile || !nextSwipeStage) return;
+    // Read window.innerWidth directly here — avoids stale isMobile closure from [] deps
+    if (window.innerWidth > 768 || !getNextSwipeStage(car.stage)) return;
     if (localStorage.getItem("swipeHintSeen")) return;
     const tid = setTimeout(()=>{
       setShowHint(true);
@@ -658,11 +659,11 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
           margin:"auto",
           position:"relative",zIndex:1000,
           willChange:"transform",
-          animation: showHint ? "swipeNudge 1.2s ease-in-out 0.1s both" : "none",
+          animation: (showHint && isMobile) ? "swipeNudge 1.2s ease-in-out 0.1s both" : "none",
         }}>
 
-        {/* "Swipe to advance" discovery hint label */}
-        {showHint && nextSwipeStage && (
+        {/* "Swipe to advance" discovery hint label — mobile only */}
+        {showHint && isMobile && nextSwipeStage && (
           <div style={{
             position:"absolute",top:"12px",left:"50%",transform:"translateX(-50%)",
             background:"rgba(0,0,0,0.75)",color:"#f1f5f9",fontSize:"11px",fontWeight:700,
