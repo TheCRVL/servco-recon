@@ -839,20 +839,49 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
 }
 
 // ─── TABLE VIEW ───────────────────────────────────────────────────────────────
+const SORT_FIELDS = { "Stock No":"stockNo", "VIN":"vin", "Make":"make", "Model":"model" };
 function TableView({ cars, onCarClick, dupVINs, dark=false }) {
+  const [sortCol, setSortCol] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
   const headers = ["Stock No","VIN","Year","Make","Model","Miles","ACV","R/W","Title","Keys","Issues","Payoff Sent","Title RCVD","Sent DMV","SPI Title","Reg Exp","SC Exp","In Svc","Svc Done","Body Shop","Detail","Photos","Frontline","Sold","T2L","Stage"];
   const dateFields = ["payoffSent","titleRcvd","sentDMV","spiTitle","regExp","scExp","inSvc","svcDone","bodyShop","detail","pics","frontline","soldDate"];
   const expiredFields = new Set(["regExp","scExp"]);
+
+  const handleSort = h => {
+    if (!SORT_FIELDS[h]) return;
+    setSortCol(prev => {
+      if (prev === h) { setSortDir(d => d === "asc" ? "desc" : "asc"); return h; }
+      setSortDir("asc"); return h;
+    });
+  };
+
+  const sorted = sortCol ? [...cars].sort((a,b) => {
+    const field = SORT_FIELDS[sortCol];
+    const av = (a[field]||"").toString().toUpperCase();
+    const bv = (b[field]||"").toString().toUpperCase();
+    const cmp = av.localeCompare(bv, undefined, {numeric:true, sensitivity:"base"});
+    return sortDir === "asc" ? cmp : -cmp;
+  }) : cars;
+
   const drag = useDragScroll();
   return (
     <div ref={drag.ref} onMouseDown={drag.onMouseDown} onMouseMove={drag.onMouseMove} onMouseUp={drag.onMouseUp} onMouseLeave={drag.onMouseLeave}
       style={{overflowX:"auto",WebkitOverflowScrolling:"touch",cursor:"grab",scrollbarWidth:"thin",background:dark?"transparent":"#ffffff",borderRadius:"8px",border:dark?"none":"1px solid #e2e8f0"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:"12px",minWidth:"900px"}}>
         <thead>
-          <tr>{headers.map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",color:dark?"#475569":"#64748b",fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,whiteSpace:"nowrap",background:dark?"#060b14":"#f8fafc"}}>{h}</th>)}</tr>
+          <tr>{headers.map(h=>{
+            const sortable = !!SORT_FIELDS[h];
+            const active   = sortCol === h;
+            return (
+              <th key={h} onClick={()=>handleSort(h)}
+                style={{padding:"8px 10px",textAlign:"left",color:active?(dark?"#f1f5f9":"#1e293b"):(dark?"#475569":"#64748b"),fontWeight:700,fontSize:"10px",letterSpacing:"0.08em",textTransform:"uppercase",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,whiteSpace:"nowrap",background:dark?"#060b14":"#f8fafc",cursor:sortable?"pointer":"default",userSelect:"none",borderBottom:active?`2px solid ${dark?"#38bdf8":"#1d4ed8"}`:`1px solid ${dark?"#1e293b":"#e2e8f0"}`}}>
+                {h}{active?(sortDir==="asc"?" ↑":" ↓"):sortable?" ·":""}
+              </th>
+            );
+          })}</tr>
         </thead>
         <tbody>
-          {cars.map((car,i)=>{
+          {sorted.map((car,i)=>{
             const days  = daysSince(car.acquiredDate);
             const badge = t2lBadge(days);
             const s     = stageOf(car.stage);
