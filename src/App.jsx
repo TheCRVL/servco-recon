@@ -222,10 +222,10 @@ function initStageTimes(car) {
 }
 
 function StatsBar({ cars, dark=false }) {
-  const frontline  = cars.filter(c=>c.stage==="frontline").length;
-  const sold       = cars.filter(c=>c.stage==="sold").length;
-  const stuck      = cars.filter(c=>daysSince(c.acquiredDate)>21&&!["frontline","sold"].includes(c.stage)).length;
-  const inProgress = cars.filter(c=>!["frontline","fresh","sold"].includes(c.stage)).length;
+  const activeCars = cars.filter(c=>c.stage!=="sold");
+  const frontline  = activeCars.filter(c=>c.stage==="frontline").length;
+  const stuck      = activeCars.filter(c=>daysSince(c.acquiredDate)>21&&c.stage!=="frontline").length;
+  const inProgress = activeCars.filter(c=>!["frontline","fresh"].includes(c.stage)).length;
   const doneCars   = cars.filter(c=>c.frontline&&c.acquiredDate);
   const avgT2L     = doneCars.length ? Math.round(doneCars.reduce((s,c)=>s+daysSince(c.acquiredDate),0)/doneCars.length) : null;
   const Stat = ({label,value,color}) => (
@@ -237,11 +237,9 @@ function StatsBar({ cars, dark=false }) {
   const divColor = dark ? "#1e293b" : "#e2e8f0";
   return (
     <div style={{display:"flex",justifyContent:"center",alignItems:"center",background:dark?"#0a0f1a":"#ffffff",border:`1px solid ${divColor}`,borderRadius:"12px",padding:"16px",marginBottom:"20px",flexWrap:"wrap",gap:"4px",boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.06)"}}>
-      <Stat label="Total"         value={cars.length}              color={dark?"#94a3b8":"#64748b"}/>
+      <Stat label="Total"         value={activeCars.length}        color={dark?"#94a3b8":"#64748b"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
       <Stat label="Frontline"     value={frontline}                color={dark?"#4ade80":"#15803d"}/>
-      <div style={{width:"1px",height:"36px",background:divColor}}/>
-      <Stat label="Sold"          value={sold}                     color={dark?"#818cf8":"#6d28d9"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
       <Stat label="In Progress"   value={inProgress}               color={dark?"#60a5fa":"#1d4ed8"}/>
       <div style={{width:"1px",height:"36px",background:divColor}}/>
@@ -815,12 +813,12 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, dark=false }) {
           <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"12px"}}>
             <span style={{fontSize:"12px",fontWeight:800,color:"#818cf8",letterSpacing:"0.1em",textTransform:"uppercase"}}>Sold 🏁</span>
             <span style={{background:"#818cf833",color:"#818cf8",borderRadius:"12px",fontSize:"11px",fontWeight:700,padding:"1px 8px"}}>{soldCars.length}</span>
-            <span style={{fontSize:"11px",color:dark?"#334155":"#94a3b8"}}>Auto-removes after 60 days</span>
+            <span style={{fontSize:"11px",color:dark?"#334155":"#94a3b8"}}>Auto-removes after 10 days</span>
           </div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
             {soldCars.map(car=>{
               const daysAgo = soldDaysAgo(car);
-              const daysLeft = daysAgo!==null?60-daysAgo:null;
+              const daysLeft = daysAgo!==null?10-daysAgo:null;
               return (
                 <div key={car.id} onClick={()=>onCarClick(car)}
                   style={{background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderLeft:"3px solid #818cf8",borderRadius:"8px",padding:"10px",cursor:"pointer",width:"190px",transition:"background 0.12s",boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.05)"}}
@@ -1046,7 +1044,11 @@ export default function ReconDashboard() {
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
-        setCars(mapped); setLastSynced(Date.now()); toast(`✓ Loaded ${mapped.length} vehicles`);
+        // Auto-archive sold vehicles older than 20 days from Notion
+        const toArchive = mapped.filter(c=>c.stage==="sold"&&soldDaysAgo(c)!==null&&soldDaysAgo(c)>=20);
+        toArchive.forEach(c=>{ if(c.id.includes("-")) notionFetch(`/pages/${c.id}`,"PATCH",{archived:true}).catch(()=>{}); });
+        const live = mapped.filter(c=>!toArchive.find(a=>a.id===c.id));
+        setCars(live); setLastSynced(Date.now()); toast(`✓ Loaded ${live.length} vehicles`);
         setNotionMode(true); setSplash(false); setConnecting(false);
       }
     } catch(e) { toast(`❌ ${e.message}`); setConnecting(false); }
@@ -1112,7 +1114,7 @@ export default function ReconDashboard() {
 
   const activeCars = cars.filter(c=>{
     if(c.stage!=="sold") return true;
-    const d = soldDaysAgo(c); return d===null||d<60;
+    const d = soldDaysAgo(c); return d===null||d<10;
   });
   const dupVINs = getDupVINs(activeCars);
   const filtered = activeCars.filter(c=>{
