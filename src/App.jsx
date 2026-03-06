@@ -899,7 +899,7 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
 
 
 // ─── SETTINGS PANEL ──────────────────────────────────────────────────────────
-function SettingsPanel({ dark, setDark, fontSize, setFontSize, highContrast, setHighContrast, onClose }) {
+function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose }) {
   const bg     = dark ? "#0f172a" : "#ffffff";
   const border = dark ? "#1e293b" : "#e2e8f0";
   const text   = dark ? "#e2e8f0" : "#1e293b";
@@ -918,16 +918,6 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, highContrast, set
         </div>
         <div onClick={()=>setDark(d=>!d)} style={{width:"42px",height:"24px",borderRadius:"12px",background:dark?"#3b82f6":"#e2e8f0",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
           <div style={{position:"absolute",top:"3px",left:dark?"21px":"3px",width:"18px",height:"18px",borderRadius:"50%",background:"#ffffff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
-        </div>
-      </div>
-      {/* High Contrast */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
-        <div>
-          <div style={{fontSize:"13px",fontWeight:600,color:text}}>High Contrast</div>
-          <div style={{fontSize:"11px",color:sub}}>Bolder colors & borders</div>
-        </div>
-        <div onClick={()=>setHighContrast(h=>!h)} style={{width:"42px",height:"24px",borderRadius:"12px",background:highContrast?"#f59e0b":"#e2e8f0",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-          <div style={{position:"absolute",top:"3px",left:highContrast?"21px":"3px",width:"18px",height:"18px",borderRadius:"50%",background:"#ffffff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
         </div>
       </div>
       {/* Font Size */}
@@ -964,8 +954,7 @@ export default function ReconDashboard() {
   const [lastSynced, setLastSynced]   = useState(null);
   const [syncAgo, setSyncAgo]         = useState("");
   const [dark, setDark]               = useState(false);
-  const [fontSize, setFontSize]       = useState("13px");
-  const [highContrast, setHighContrast] = useState(false);
+  const [fontSize, setFontSize]       = useState("14px");
   const [showSettings, setShowSettings] = useState(false);
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
@@ -973,19 +962,34 @@ export default function ReconDashboard() {
   // ── Silent background poll every 30s when Notion mode is on ────────────────
   const silentPoll = useCallback(async () => {
     try {
-      const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`,"POST",{page_size:200});
-      if (data.results) {
-        const fresh = data.results.map(page=>{
+      // Paginate through ALL pages — Notion caps at 100 per request
+      const allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      while (hasMore) {
+        const body = { page_size: 100 };
+        if (startCursor) body.start_cursor = startCursor;
+        const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`, "POST", body);
+        if (data.results) allResults.push(...data.results);
+        hasMore = data.has_more || false;
+        startCursor = data.next_cursor || undefined;
+      }
+      if (allResults.length > 0) {
+        const fresh = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
           const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
-        // Merge remote data with local notes & stageTimes (preserve local overrides)
-        setCars(prev => fresh.map(f => {
-          const loc = prev.find(p=>p.id===f.id);
-          return loc ? {...f, notes:loc.notes, stageTimes:loc.stageTimes||f.stageTimes} : f;
-        }));
+        // Merge remote data with local notes & stageTimes; preserve local-only vehicles (no Notion UUID)
+        setCars(prev => {
+          const localOnly = prev.filter(p => !p.id.includes("-"));
+          const merged = fresh.map(f => {
+            const loc = prev.find(p=>p.id===f.id);
+            return loc ? {...f, notes:loc.notes, stageTimes:loc.stageTimes||f.stageTimes} : f;
+          });
+          return [...merged, ...localOnly];
+        });
         setLastSynced(Date.now());
       }
     } catch(_) { /* silent — don't alert user on background errors */ }
@@ -1013,9 +1017,20 @@ export default function ReconDashboard() {
   const loadNotion = async () => {
     setLoading(true); toast("Fetching from Notion…");
     try {
-      const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`,"POST",{page_size:200});
-      if (data.results) {
-        const mapped = data.results.map(page=>{
+      // Paginate through ALL pages — Notion hard-caps at 100 per request
+      const allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      while (hasMore) {
+        const body = { page_size: 100 };
+        if (startCursor) body.start_cursor = startCursor;
+        const data = await notionFetch(`/databases/${NOTION_DB_ID}/query`, "POST", body);
+        if (data.results) allResults.push(...data.results);
+        hasMore = data.has_more || false;
+        startCursor = data.next_cursor || undefined;
+      }
+      if (allResults.length > 0) {
+        const mapped = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"";
           const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:p["Stage"]?.select?.name||"fresh",acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:dt("Reg Exp"),scExp:dt("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),notes:[]};
           mc.stageTimes=initStageTimes(mc);
@@ -1100,7 +1115,7 @@ export default function ReconDashboard() {
 
   // ─── SPLASH SCREEN ──────────────────────────────────────────────────────────
   if (splash) return (
-    <div style={{minHeight:"100vh",background:"#060b14",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','DM Mono',sans-serif",padding:"24px"}}>
+    <div style={{minHeight:"100vh",background:"#ffffff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans','DM Mono',sans-serif",padding:"24px"}}>
       <style>{"@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600;800&display=swap');*{box-sizing:border-box;}"}</style>
 
       {/* Logo */}
@@ -1117,7 +1132,7 @@ export default function ReconDashboard() {
       <div style={{
         fontSize:"clamp(15px,2.2vw,22px)",
         fontWeight:700,
-        color:"#94a3b8",
+        color:"#64748b",
         letterSpacing:"0.18em",
         textTransform:"uppercase",
         marginBottom:"10px",
@@ -1128,7 +1143,7 @@ export default function ReconDashboard() {
       <div style={{
         fontSize:"clamp(22px,4vw,42px)",
         fontWeight:800,
-        color:"#f1f5f9",
+        color:"#1e293b",
         letterSpacing:"0.04em",
         marginBottom:"6px",
         textAlign:"center",
@@ -1163,12 +1178,12 @@ export default function ReconDashboard() {
             }}
             style={{
               width:"100%",
-              background:"#0f172a",
-              border:`1px solid ${pwError?"#dc2626":"#1e3a5f"}`,
+              background:"#f8fafc",
+              border:`1px solid ${pwError?"#dc2626":"#cbd5e1"}`,
               borderRadius:"10px",
               padding:"14px 18px",
               fontSize:"15px",
-              color:"#e2e8f0",
+              color:"#1e293b",
               fontFamily:"'DM Mono',monospace",
               fontWeight:500,
               outline:"none",
@@ -1262,7 +1277,7 @@ export default function ReconDashboard() {
   );
 
   return (
-    <div style={{minHeight:"100vh",background:dark?"#060b14":"#f1f5f9",color:dark?"#e2e8f0":"#1e293b",fontFamily:"'DM Mono','Fira Code','Courier New',monospace",fontSize:fontSize,filter:highContrast?"contrast(1.12)":"none"}}>
+    <div style={{minHeight:"100vh",background:dark?"#060b14":"#f1f5f9",color:dark?"#e2e8f0":"#1e293b",fontFamily:"'DM Mono','Fira Code','Courier New',monospace",fontSize:"14px",zoom:parseInt(fontSize)/14}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600;800&display=swap');
         *{box-sizing:border-box;}
@@ -1357,7 +1372,7 @@ export default function ReconDashboard() {
 
       {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete} dark={dark}/>}
       {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))} dark={dark}/>}
-      {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} highContrast={highContrast} setHighContrast={setHighContrast} onClose={()=>setShowSettings(false)}/>}
+      {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} onClose={()=>setShowSettings(false)}/>}
     </div>
   );
 }
