@@ -402,7 +402,7 @@ async function decodeVINsBatch(vehicles, onProgress) {
     // Format: VIN;modelYear,VIN;modelYear,...
     const dataStr = chunk.map(v => `${v.vin};${v.year || ""}`).join(",");
     try {
-      const res  = await fetch("https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvaluesbatch", {
+      const res  = await fetch("https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvaluesbatch?format=json", {
         method:  "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body:    `DATA=${encodeURIComponent(dataStr)}`,
