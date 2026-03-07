@@ -2558,7 +2558,7 @@ export default function ReconDashboard() {
         Recon Pipeline
       </div>
       <a
-        href="https://docs.google.com/document/d/e/2PACX-1vQR1SwGp_1bPVKmRuX0tFaX_gQ4f6WTIO6hU1yb8LNPDKcnO67tRx9B_6b1EyKvjg/pub"
+        href="https://docs.google.com/document/d/e/2PACX-1vQltB37C0bb6rKleawxkd1Pr2xXRewKZUJF__D2ZCsTlPdzj3vTQlaAUln2aQppCw/pub"
         target="_blank"
         rel="noopener noreferrer"
         style={{
@@ -2574,7 +2574,7 @@ export default function ReconDashboard() {
         onMouseEnter={e=>e.currentTarget.style.color="#1d4ed8"}
         onMouseLeave={e=>e.currentTarget.style.color="#334155"}
       >
-        V 1 . 4  · Beta
+        V 1 . 5  · Axcessa Import Update
       </a>
       <div style={{
         fontSize:"11px",
