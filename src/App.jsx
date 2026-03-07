@@ -2508,7 +2508,7 @@ export default function ReconDashboard() {
     if (stageFilter!=="all" && c.stage!==stageFilter) return false;
     if (rwFilter!=="all" && c.rw!==rwFilter) return false;
     if (titleStateFilter!=="all" && c.titleState!==titleStateFilter) return false;
-    if (hasPayoffFilter && !c.payoffBank) return false;
+    if (hasPayoffFilter) { const _pb = (c.payoffBank||"").trim(); if (!_pb || /^no(ne)?$/i.test(_pb)) return false; }
     for (const key of tagFilters) {
       const def = TAG_FILTER_DEFS.find(d=>d.key===key);
       if (def && !def.test(c)) return false;
