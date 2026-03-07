@@ -493,9 +493,80 @@ function AcquiredField({ form, set, dark=false, readonly=false }) {
   );
 }
 
+// ─── DESKTOP DETECTION ────────────────────────────────────────────────────────
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 769
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 769px)");
+    const handler = e => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isDesktop;
+}
+
+// ─── JACKET LABEL (print only, desktop only) ──────────────────────────────────
+function JacketLabel({ form }) {
+  const fields = [
+    { label: "STOCK NO.",     value: form.stockNo },
+    { label: "ACQUIRED DATE", value: form.acquiredDate },
+    { label: "MAKE",          value: form.make },
+    { label: "YEAR",          value: form.year },
+    { label: "MODEL",         value: form.model },
+    { label: "VIN",           value: form.vin },
+    { label: "MILES",         value: form.miles },
+    { label: "COLOR",         value: form.color },
+    { label: "LICENSE PLATE", value: form.licensePlate },
+    { label: "PAYOFF BANK",   value: form.payoffBank },
+  ];
+  return (
+    <>
+      <style>{`
+        @media print {
+          @page { margin: 0.25in; size: auto; }
+          body * { visibility: hidden !important; }
+          #jacket-label-slip, #jacket-label-slip * { visibility: visible !important; }
+          #jacket-label-slip {
+            position: fixed !important;
+            top: 0 !important; left: 0 !important;
+            width: 3.5in !important;
+            box-shadow: none !important;
+            background: white !important;
+          }
+        }
+      `}</style>
+      <div
+        id="jacket-label-slip"
+        aria-hidden="true"
+        style={{ position:"fixed", top:"-9999px", left:"-9999px", visibility:"hidden", pointerEvents:"none" }}
+      >
+        <div style={{ width:"3.5in", fontFamily:"Arial,Helvetica,sans-serif", fontSize:"10pt", border:"1.5px solid #000", padding:"10px 12px", background:"#fff", color:"#000" }}>
+          {/* Header */}
+          <div style={{ textAlign:"center", fontWeight:700, fontSize:"11pt", letterSpacing:"0.05em", borderBottom:"1px solid #000", paddingBottom:"6px", marginBottom:"8px" }}>
+            SERVCO PRE-OWNED
+          </div>
+          {/* Fields */}
+          {fields.map(({ label, value }) => (
+            <div key={label} style={{ display:"flex", alignItems:"baseline", marginBottom:"5px", lineHeight:"1.4" }}>
+              <span style={{ fontWeight:700, minWidth:"1.3in", flexShrink:0, fontSize:"9pt" }}>{label}</span>
+              {value
+                ? <span style={{ fontSize:"10pt" }}>{value}</span>
+                : <span style={{ flex:1, borderBottom:"1px solid #000", minWidth:"1.4in", display:"inline-block", marginLeft:"4px" }}>&nbsp;</span>
+              }
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── CAR DETAIL MODAL ────────────────────────────────────────────────────────
 function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark=false, currentRole="admin", currentUser="" }) {
   const isViewer = currentRole === "viewer";
+  const isDesktop = useIsDesktop();
   const [form, setForm]                   = useState({...car});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -884,18 +955,23 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
         ) : isViewer ? (
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"16px",flexWrap:"wrap",gap:"8px"}}>
             <span style={{fontSize:"11px",color:dark?"#475569":"#94a3b8",fontStyle:"italic"}}>👁 View-only mode</span>
-            <button onClick={onClose} style={btn("#1e293b","#334155",dark)}>Close</button>
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
+              {isDesktop&&<button onClick={()=>window.print()} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",color:dark?"#94a3b8":"#475569"}}>🖨 Print Jacket Label</button>}
+              <button onClick={onClose} style={btn("#1e293b","#334155",dark)}>Close</button>
+            </div>
           </div>
         ) : (
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"16px",flexWrap:"wrap",gap:"8px"}}>
             <button onClick={()=>setConfirmDelete(true)} style={{...btn("#1e293b","#334155",dark),color:dark?"#f87171":"#dc2626",fontSize:"12px"}}>🗑 Delete</button>
-            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
+              {isDesktop&&<button onClick={()=>window.print()} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",color:dark?"#94a3b8":"#475569"}}>🖨 Print Jacket Label</button>}
               <button onClick={handleClose} style={btn("#1e293b","#334155",dark)}>Cancel</button>
               <button onClick={()=>{onSave(form);onClose();}} style={btn("#15803d","#4ade80",dark)}>Save Changes</button>
             </div>
           </div>
         )}
       </div>
+      {isDesktop&&<JacketLabel form={form}/>}
     </div>
   );
 }
