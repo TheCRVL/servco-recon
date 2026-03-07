@@ -1546,10 +1546,18 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
   useEffect(() => {
     if (!isAdmin) return;
     fetch("/api/backup", { headers: { Authorization: `Bearer ${NOTION_TOKEN}` } })
-      .then(r => r.json())
-      .then(d => setLastBackup(d.lastBackup || null))
+      .then(r => r.headers.get("content-type")?.includes("application/json") ? r.json() : null)
+      .then(d => d && setLastBackup(d.lastBackup || null))
       .catch(() => {});
   }, [isAdmin]);
+
+  // Safely parse JSON — throws a readable error if the API returns HTML (not yet deployed)
+  const safeJson = async r => {
+    const ct = r.headers.get("content-type") || "";
+    if (!ct.includes("application/json"))
+      throw new Error(`API not reachable (${r.status}) — deploy api/backup.js to Vercel`);
+    return r.json();
+  };
 
   const runBackup = async () => {
     setBackupLoading(true); setBackupMsg("");
@@ -1558,7 +1566,7 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${NOTION_TOKEN}` },
       });
-      const d = await r.json();
+      const d = await safeJson(r);
       if (d.success) {
         setLastBackup(d.timestamp);
         setBackupMsg(`✓ Synced ${d.synced} record${d.synced !== 1 ? "s" : ""}${d.deleted ? `, archived ${d.deleted}` : ""}`);
@@ -1578,7 +1586,7 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${NOTION_TOKEN}` },
       });
-      const d = await r.json();
+      const d = await safeJson(r);
       if (d.success) {
         setRestoreMsg(`✓ Restored ${d.restored} record${d.restored !== 1 ? "s" : ""}`);
       } else {
