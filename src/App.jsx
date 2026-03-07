@@ -1654,12 +1654,12 @@ function AxcessaImportModal({ file, onClose, dark, notionMode }) {
   const text   = dark ? "#e2e8f0" : "#1e293b";
   const sub    = dark ? "#64748b" : "#94a3b8";
 
-  const [phase,    setPhase]    = React.useState("processing"); // "processing"|"error"|"done"
-  const [progress, setProgress] = React.useState("Starting…");
-  const [errMsg,   setErrMsg]   = React.useState("");
-  const [results,  setResults]  = React.useState(null);
+  const [phase,    setPhase]    = useState("processing"); // "processing"|"error"|"done"
+  const [progress, setProgress] = useState("Starting…");
+  const [errMsg,   setErrMsg]   = useState("");
+  const [results,  setResults]  = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -2092,7 +2092,7 @@ export default function ReconDashboard() {
   const [fontSize, setFontSize]       = useState("14px");
   const [showSettings, setShowSettings] = useState(false);
   const [axcessaFile,  setAxcessaFile]  = useState(null);
-  const axcessaFileRef = React.useRef(null);
+  const axcessaFileRef = useRef(null);
   const isDesktop = useIsDesktop();
   const [swipeUndo, setSwipeUndo]       = useState(null); // {msg,carId,fromStage,nextStageId,clearedFields,timerId}
 
