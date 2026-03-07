@@ -255,6 +255,7 @@ function carToNotion(car) {
     "Keys":          {select:{name:car.keys||"1"}}, "Miles": rt(car.miles),
     "R/W":           {select:{name:car.rw||"R"}}, "Title State": {select:{name:car.titleState||"HI"}},
     "Payoff Bank":   rt(car.payoffBank), "ACV": rt(car.acv),
+    "License Plate": rt(car.licensePlate), "Color": rt(car.color),
     "Stage":         {select:{name:car.stage||"fresh"}},
     "Acquired Date": dt(car.acquiredDate), "Payoff Sent": dt(car.payoffSent),
     "Title RCVD":    dt(car.titleRcvd),   "Sent DMV":    dt(car.sentDMV),
@@ -812,8 +813,10 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
           <ModalField label="Year"  fkey="year" form={form} set={set} readonly={isViewer}/>
           <ModalField label="Make"  fkey="make" form={form} set={set} readonly={isViewer}/>
           <ModalField label="Model" fkey="model" form={form} set={set} readonly={isViewer}/>
-          <ModalField label="Miles" fkey="miles" form={form} set={set} readonly={isViewer}/>
-          <ModalField label="ACV"   fkey="acv" form={form} set={set} readonly={isViewer}/>
+          <ModalField label="Miles"         fkey="miles"        form={form} set={set} readonly={isViewer}/>
+          <ModalField label="Color"         fkey="color"        form={form} set={set} readonly={isViewer}/>
+          <ModalField label="License Plate" fkey="licensePlate" form={form} set={set} readonly={isViewer}/>
+          <ModalField label="ACV"           fkey="acv"          form={form} set={set} readonly={isViewer}/>
           <ModalSelect label="Keys"        fkey="keys"       options={[{v:"1",l:"1 Key"},{v:"2",l:"2 Keys"}]} form={form} set={set} readonly={isViewer}/>
           <ModalSelect label="Retail/Whsl" fkey="rw"         options={[{v:"R",l:"Retail"},{v:"W",l:"Wholesale"}]} form={form} set={set} readonly={isViewer}/>
           <ModalSelect label="Title State" fkey="titleState" options={[{v:"HI",l:"Hawaii (HI)"},{v:"ML",l:"Mainland (ML)"}]} form={form} set={set} readonly={isViewer}/>
@@ -1676,7 +1679,7 @@ export default function ReconDashboard() {
         const fresh = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
           const rawStage=p["Stage"]?.select?.name||"fresh";
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:parseNotes("Notes")};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -1741,7 +1744,7 @@ export default function ReconDashboard() {
         const mapped = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
           const rawStage=p["Stage"]?.select?.name||"fresh";
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),notes:parseNotes("Notes")};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
