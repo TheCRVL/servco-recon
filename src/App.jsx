@@ -330,10 +330,15 @@ async function parseAxcessaXLSX(file) {
       const body       = cl(r[C.body]);
       const modelFull  = (body && body !== "-") ? `${model} (${body})` : model;
       const titleRecvd = C.title !== null ? cl(r[C.title]) : "";
+      const ageDays    = parseInt(cl(r[2])); // col C = Age (days) — same in both formats
+      const acquiredDate = (Number.isInteger(ageDays) && ageDays > 0)
+        ? new Date(Date.now() - ageDays * 86400000).toISOString().split("T")[0]
+        : null;
       cur = {
         stockNo: cl(r[C.stock]), year: cl(r[C.year]), make: cl(r[C.make]), model: modelFull,
         miles: cl(r[C.miles]), color: cl(r[C.color]), interior: cl(r[C.interior]), vin,
         titleRcvdToggle: titleRecvd !== "",
+        acquiredDate,
         notes: [],
       };
     } else if (!vin && !colB && colD.length > 3 && cur) {
@@ -362,6 +367,7 @@ function buildImportCreateProps(v, format) {
     "Stage":             { select: { name: "fresh" } },
     "R/W":               { select: { name: format === "Wholesale" ? "W" : "R" } },
   };
+  if (v.acquiredDate) props["Acquired Date"] = { date: { start: v.acquiredDate } };
   if (v.notes.length > 0) props["Notes"] = rtChunked(v.notes.join("\n"));
   return props;
 }
@@ -383,6 +389,10 @@ function buildImportUpdateProps(v, p, format) {
   // Title RCVD Toggle: only flip to true, never to false
   if (v.titleRcvdToggle && !p["Title RCVD Toggle"]?.checkbox) {
     updates["Title RCVD Toggle"] = { checkbox: true };
+  }
+  // Acquired Date: fill in if currently empty — existing value always wins
+  if (v.acquiredDate && !p["Acquired Date"]?.date?.start) {
+    updates["Acquired Date"] = { date: { start: v.acquiredDate } };
   }
   // R/W: fill in if currently empty — existing value always wins
   if (!p["R/W"]?.select?.name) {
