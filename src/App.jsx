@@ -1389,32 +1389,6 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
 }
 
 // ─── SEARCH RESULTS VIEW (flat list, no stage grouping) ──────────────────────
-function SearchResultsView({ cars, onCarClick, dupVINs, dark=false }) {
-  const sub = dark ? "#475569" : "#94a3b8";
-  if (cars.length === 0) return (
-    <div style={{textAlign:"center",padding:"60px 0",color:sub,fontSize:"14px",fontFamily:"'DM Sans',sans-serif"}}>No Results</div>
-  );
-  return (
-    <div>
-      <div style={{fontSize:"11px",fontWeight:700,color:sub,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:"12px",fontFamily:"'DM Sans',sans-serif"}}>
-        Stages Hidden · Results: {cars.length}
-      </div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
-        {cars.map(car=>{
-          const stage = stageOf(car.stage);
-          return (
-            <div key={car.id} style={{width:"190px",flexShrink:0}}>
-              <KanbanCard car={car} stage={stage} onCarClick={onCarClick}
-                isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}
-                onDragStart={()=>{}} isDragging={false} isGhost={false} dark={dark}/>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ─── DRAG SCROLL HOOK ────────────────────────────────────────────────────────
 function useDragScroll() {
   const ref = useRef(null);
@@ -1455,9 +1429,14 @@ function useDragScroll() {
 
 
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
-function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false, readonly=false }) {
+function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false, readonly=false, isFiltering=false }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
+  // When filtering/searching, collapse stages that have no matching vehicles
+  const visibleStages = isFiltering
+    ? PIPELINE_STAGES.filter(s => pipelineCars.some(c => c.stage === s.id))
+    : PIPELINE_STAGES;
+  const hiddenCount = PIPELINE_STAGES.length - visibleStages.length;
   const drag = useDragScroll();
 
   const [draggingId, setDraggingId]   = useState(null);
@@ -1508,9 +1487,19 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onTo
 
   return (
     <div>
+      {/* "N stages hidden" indicator shown while filtering */}
+      {isFiltering && hiddenCount > 0 && (
+        <div style={{fontSize:"11px",fontWeight:700,color:dark?"#475569":"#94a3b8",letterSpacing:"0.06em",marginBottom:"8px",fontFamily:"'DM Sans',sans-serif"}}>
+          {hiddenCount} empty {hiddenCount===1?"stage":"stages"} hidden
+        </div>
+      )}
+      {/* Empty-state when all stages are hidden */}
+      {isFiltering && visibleStages.length === 0 && (
+        <div style={{textAlign:"center",padding:"60px 0",color:dark?"#334155":"#94a3b8",fontSize:"14px",fontFamily:"'DM Sans',sans-serif"}}>No Results</div>
+      )}
       <div ref={drag.ref} onMouseDown={drag.onMouseDown} onMouseMove={drag.onMouseMove} onMouseUp={drag.onMouseUp} onMouseLeave={drag.onMouseLeave}
-        style={{display:"flex",gap:"10px",overflowX:"auto",padding:"4px 0 16px",minHeight:"400px",cursor:draggingId?"default":"grab",scrollbarWidth:"thin"}}>
-        {PIPELINE_STAGES.map(stage=>{
+        style={{display:"flex",gap:"10px",overflowX:"auto",padding:"4px 0 16px",minHeight:visibleStages.length?400:0,cursor:draggingId?"default":"grab",scrollbarWidth:"thin"}}>
+        {visibleStages.map(stage=>{
           const col    = pipelineCars.filter(c=>c.stage===stage.id);
           const isOver = overStage===stage.id;
           // ── Snake layout: max SNAKE_MAX per sub-column, even-indexed cols reversed ──
@@ -2570,6 +2559,8 @@ export default function ReconDashboard() {
     return true;
   }), [activeCars, search, stageFilter, rwFilter, titleStateFilter, hasPayoffFilter, tagFilters]);
   const activePanelFilters = tagFilters.length + (titleStateFilter!=="all"?1:0) + (hasPayoffFilter?1:0);
+  // Any active search or filter → KanbanView collapses empty stages
+  const isFiltering = !!(search.trim() || stageFilter!=="all" || rwFilter!=="all" || titleStateFilter!=="all" || hasPayoffFilter || tagFilters.length>0);
   const clearPanelFilters = () => { setTagFilters([]); setTitleStateFilter("all"); setHasPayoffFilter(false); };
 
 
@@ -3033,11 +3024,9 @@ export default function ReconDashboard() {
 
         {loading
           ? <div style={{textAlign:"center",padding:"60px",color:dark?"#334155":"#94a3b8",fontSize:"14px"}}>Loading from Notion…</div>
-          : search.trim() && view==="kanban"
-            ? <SearchResultsView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
-            : view==="kanban"
-              ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"}/>
-              : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
+          : view==="kanban"
+            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"} isFiltering={isFiltering}/>
+            : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
         }
       </div>
 
