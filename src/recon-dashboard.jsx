@@ -1498,7 +1498,7 @@ function useDragScroll() {
 
 
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
-function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false, readonly=false, isFiltering=false, onTogglePrint, printQueueIds=new Set() }) {
+function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false, readonly=false, isFiltering=false, onTogglePrint, printQueueIds=new Set(), onToast }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
   // When filtering/searching, collapse stages that have no matching vehicles
@@ -1715,6 +1715,26 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onTo
                 <span>{inQueue?"Remove from Print Queue":"Add to Print Queue"}</span>
               </button>
             ); })()}
+          </>}
+          {/* Share vehicle */}
+          {ctxCar.vin && <>
+            <div style={{height:"1px",background:dark?"#1e293b":"#e2e8f0",margin:"4px 0"}}/>
+            <button
+              onClick={()=>{
+                const url = `${window.location.origin}${window.location.pathname}?vin=${ctxCar.vin}`;
+                navigator.clipboard.writeText(url).then(()=>{
+                  onToast && onToast("🔗 Link copied!");
+                }).catch(()=>{
+                  onToast && onToast("🔗 Link copied!");
+                });
+                closeCtx();
+              }}
+              style={{display:"flex",alignItems:"center",gap:"8px",width:"100%",padding:"8px 10px",background:"none",border:"none",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:700,color:dark?"#94a3b8":"#64748b",textAlign:"left"}}
+              onMouseEnter={e=>e.currentTarget.style.background=dark?"#1e293b":"#f8fafc"}
+              onMouseLeave={e=>e.currentTarget.style.background="none"}>
+              <span>🔗</span>
+              <span>Share Vehicle</span>
+            </button>
           </>}
         </div>
       )}
@@ -2088,7 +2108,7 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
   };
 
   return (
-    <div style={{position:"fixed",bottom:"72px",right:"20px",zIndex:9999,background:bg,border:`1px solid ${border}`,borderRadius:"14px",padding:"20px",width:"280px",boxShadow:dark?"0 8px 40px rgba(0,0,0,0.6)":"0 8px 40px rgba(0,0,0,0.15)",fontFamily:"'DM Sans',sans-serif"}}>
+    <div style={{position:"fixed",bottom:"72px",right:"20px",zIndex:9999,background:bg,border:`1px solid ${border}`,borderRadius:"14px",padding:"20px",width:"280px",boxShadow:dark?"0 8px 40px rgba(0,0,0,0.6)":"0 8px 40px rgba(0,0,0,0.15)",fontFamily:"'DM Sans',sans-serif",maxHeight:"calc(100vh - 100px)",overflowY:"auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
         <span style={{fontSize:"13px",fontWeight:800,color:text,letterSpacing:"0.04em",textTransform:"uppercase"}}>⚙ Settings</span>
         <button onClick={onClose} style={{background:"none",border:"none",color:sub,cursor:"pointer",fontSize:"16px",padding:"0",lineHeight:1}}>✕</button>
@@ -2506,11 +2526,13 @@ export default function ReconDashboard() {
   useEffect(() => {
     if (!pendingVin || splash || cars.length === 0) return;
     const car = cars.find(c => c.vin && c.vin.toUpperCase() === pendingVin.toUpperCase());
+    // Always clean URL and clear pending, whether found or not
+    setPendingVin(null);
+    window.history.replaceState({}, "", window.location.pathname);
     if (car) {
       setSelected(car);
-      setPendingVin(null);
-      // Remove ?vin= from address bar without triggering a navigation
-      window.history.replaceState({}, "", window.location.pathname);
+    } else {
+      toast(`⚠ No vehicle found for VIN ${pendingVin.slice(0, 8)}…`);
     }
   }, [pendingVin, cars, splash]); // eslint-disable-line
 
@@ -3275,7 +3297,7 @@ export default function ReconDashboard() {
         {loading
           ? <div style={{textAlign:"center",padding:"60px",color:dark?"#334155":"#94a3b8",fontSize:"14px"}}>Loading from Notion…</div>
           : view==="kanban"
-            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"} isFiltering={isFiltering} onTogglePrint={togglePrintQueue} printQueueIds={printQueueIds}/>
+            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"} isFiltering={isFiltering} onTogglePrint={togglePrintQueue} printQueueIds={printQueueIds} onToast={toast}/>
             : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
         }
       </div>
