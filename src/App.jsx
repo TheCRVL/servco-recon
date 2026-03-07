@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 
 // ─── NOTION CONFIG ────────────────────────────────────────────────────────────
 // Credentials live in Vercel environment variables — never hardcoded
@@ -708,63 +709,116 @@ function useIsDesktop() {
 }
 
 // ─── JACKET LABEL (print only, desktop only) ──────────────────────────────────
-function JacketLabel({ form }) {
-  const fields = [
-    { label: "STOCK NO.",     value: form.stockNo },
-    { label: "ACQUIRED DATE", value: form.acquiredDate },
-    { label: "MAKE",          value: form.make },
-    { label: "YEAR",          value: form.year },
-    { label: "MODEL",         value: form.model },
-    { label: "VIN",           value: form.vin },
-    { label: "MILES",         value: form.miles },
-    { label: "COLOR",         value: form.color },
-    { label: "LICENSE PLATE", value: form.licensePlate },
-    { label: "PAYOFF BANK",   value: form.payoffBank },
-  ];
-  return (
+// ─── PRINT SHEET ─────────────────────────────────────────────────────────────
+// Portals the 4-up label layout outside #root so @media print can simply
+// hide the entire app and show only the labels — no more 5-page bleed.
+function PrintSheet({ vehicles }) {
+  const elRef  = useRef(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const div = document.createElement("div");
+    div.id = "print-portal";
+    document.body.appendChild(div);
+    elRef.current = div;
+    setReady(true);
+    return () => { document.body.removeChild(div); };
+  }, []);
+
+  if (!ready) return null;
+
+  // Group into pages of 4 (2 × 2 grid)
+  const pages = [];
+  for (let i = 0; i < Math.max(vehicles.length, 1); i += 4)
+    pages.push(vehicles.slice(i, i + 4));
+
+  const fld = (lbl, val, color) => (
+    <div key={lbl} style={{display:"flex",alignItems:"baseline",marginBottom:"3.5px",lineHeight:"1.3"}}>
+      <span style={{fontWeight:700,minWidth:"1.1in",flexShrink:0,fontSize:"7pt"}}>{lbl}</span>
+      {val
+        ? <span style={{fontSize:"8pt",color:color||"#000"}}>{val}</span>
+        : <span style={{flex:1,borderBottom:"1px solid #000",minWidth:"1.1in",display:"inline-block",marginLeft:"4px"}}>&nbsp;</span>
+      }
+    </div>
+  );
+
+  const LabelCell = ({ car }) => {
+    if (!car) return <div style={{width:"3.5in"}} />;
+    return (
+      <div style={{width:"3.5in",fontFamily:"Arial,Helvetica,sans-serif",fontSize:"8pt",border:"1.5px solid #000",padding:"8px 10px",background:"#fff",color:"#000",boxSizing:"border-box"}}>
+        <div style={{textAlign:"center",fontWeight:700,fontSize:"10pt",letterSpacing:"0.05em",borderBottom:"1px solid #000",paddingBottom:"4px",marginBottom:"6px"}}>
+          SERVCO LEEWARD
+        </div>
+        {fld("STOCK NO.",     car.stockNo,      "#8B1A1A")}
+        {fld("ACQUIRED DATE", car.acquiredDate,  "#8B1A1A")}
+        {fld("MAKE",          car.make,          "#1A3A8B")}
+        {fld("YEAR",          car.year,          "#1A3A8B")}
+        {fld("MODEL",         car.model,         "#1A3A8B")}
+        {fld("VIN",           car.vin,           "#000")}
+        {fld("MILES",         car.miles,         "#444")}
+        {fld("COLOR",         car.color,         "#444")}
+        {fld("LICENSE PLATE", car.licensePlate,  "#444")}
+        {fld("PAYOFF BANK",   car.payoffBank,    "#8B1A1A")}
+        {fld("REG EXP",       car.regExp||"",    car.regExp?"#444":null)}
+        {fld("SC EXP",        car.scExp||"",     car.scExp?"#444":null)}
+      </div>
+    );
+  };
+
+  return createPortal(
     <>
       <style>{`
+        /* Hidden outside print */
+        #print-portal { display: none; }
         @media print {
-          @page { margin: 0.25in; size: auto; }
-          body * { visibility: hidden !important; }
-          #jacket-label-slip, #jacket-label-slip * { visibility: visible !important; }
-          #jacket-label-slip {
-            position: fixed !important;
-            top: 0 !important; left: 0 !important;
-            width: 3.5in !important;
-            box-shadow: none !important;
-            background: white !important;
+          @page { size: letter portrait; margin: 0.4in; }
+          /* Hide the entire React app; show only the portal */
+          #root  { display: none !important; }
+          #print-portal { display: block !important; width: 7.7in; background: white; }
+          .print-page {
+            display: grid !important;
+            grid-template-columns: 3.5in 3.5in;
+            grid-template-rows: auto auto;
+            gap: 0.35in;
+            align-items: start;
+            page-break-after: always;
           }
+          .print-page:last-child { page-break-after: auto; }
+          .print-cell { display: flex !important; justify-content: flex-start; align-items: flex-start; }
         }
       `}</style>
-      <div
-        id="jacket-label-slip"
-        aria-hidden="true"
-        style={{ position:"fixed", top:"-9999px", left:"-9999px", visibility:"hidden", pointerEvents:"none" }}
-      >
-        <div style={{ width:"3.5in", fontFamily:"Arial,Helvetica,sans-serif", fontSize:"10pt", border:"1.5px solid #000", padding:"10px 12px", background:"#fff", color:"#000" }}>
-          {/* Header */}
-          <div style={{ textAlign:"center", fontWeight:700, fontSize:"11pt", letterSpacing:"0.05em", borderBottom:"1px solid #000", paddingBottom:"6px", marginBottom:"8px" }}>
-            SERVCO LEEWARD
-          </div>
-          {/* Fields */}
-          {fields.map(({ label, value }) => (
-            <div key={label} style={{ display:"flex", alignItems:"baseline", marginBottom:"5px", lineHeight:"1.4" }}>
-              <span style={{ fontWeight:700, minWidth:"1.3in", flexShrink:0, fontSize:"9pt" }}>{label}</span>
-              {value
-                ? <span style={{ fontSize:"10pt" }}>{value}</span>
-                : <span style={{ flex:1, borderBottom:"1px solid #000", minWidth:"1.4in", display:"inline-block", marginLeft:"4px" }}>&nbsp;</span>
-              }
+      {pages.map((page, pi) => (
+        <div key={pi} className="print-page">
+          {[0,1,2,3].map(ci => (
+            <div key={ci} className="print-cell">
+              <LabelCell car={page[ci]} />
             </div>
           ))}
         </div>
-      </div>
-    </>
+      ))}
+    </>,
+    elRef.current
+  );
+}
+
+// Small reusable button: toggles a vehicle in/out of the print queue
+function PrintQueueButton({ form, onTogglePrint, printQueueIds, dark }) {
+  const inQueue = printQueueIds.has(form.id);
+  return (
+    <button
+      onClick={() => onTogglePrint(form)}
+      style={{
+        ...btn(inQueue?(dark?"#1a2e1a":"#dcfce7"):(dark?"#1e293b":"#f1f5f9"),inQueue?"#4ade80":(dark?"#334155":"#e2e8f0")),
+        fontSize:"11px", color: inQueue?"#15803d":(dark?"#94a3b8":"#64748b"),
+      }}
+    >
+      {inQueue ? "✓ In Print Queue" : "🖨 Queue for Print"}
+    </button>
   );
 }
 
 // ─── CAR DETAIL MODAL ────────────────────────────────────────────────────────
-function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark=false, currentRole="admin", currentUser="" }) {
+function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark=false, currentRole="admin", currentUser="", onTogglePrint, printQueueIds=new Set() }) {
   const isViewer = currentRole === "viewer";
   const isDesktop = useIsDesktop();
   const [form, setForm]                   = useState({...car});
@@ -1156,7 +1210,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"16px",flexWrap:"wrap",gap:"8px"}}>
             <span style={{fontSize:"11px",color:dark?"#475569":"#94a3b8",fontStyle:"italic"}}>👁 View-only mode</span>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
-              {isDesktop&&<button onClick={()=>window.print()} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",color:dark?"#94a3b8":"#475569"}}>🖨 Print Jacket Label</button>}
+              {isDesktop&&<PrintQueueButton form={form} onTogglePrint={onTogglePrint} printQueueIds={printQueueIds} dark={dark}/>}
               <button onClick={onClose} style={btn("#1e293b","#334155",dark)}>Close</button>
             </div>
           </div>
@@ -1164,14 +1218,13 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"16px",flexWrap:"wrap",gap:"8px"}}>
             <button onClick={()=>setConfirmDelete(true)} style={{...btn("#1e293b","#334155",dark),color:dark?"#f87171":"#dc2626",fontSize:"12px"}}>🗑 Delete</button>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
-              {isDesktop&&<button onClick={()=>window.print()} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",color:dark?"#94a3b8":"#475569"}}>🖨 Print Jacket Label</button>}
+              {isDesktop&&<PrintQueueButton form={form} onTogglePrint={onTogglePrint} printQueueIds={printQueueIds} dark={dark}/>}
               <button onClick={handleClose} style={btn("#1e293b","#334155",dark)}>Cancel</button>
               <button onClick={()=>{onSave(form);onClose();}} style={btn("#15803d","#4ade80",dark)}>Save Changes</button>
             </div>
           </div>
         )}
       </div>
-      {isDesktop&&<JacketLabel form={form}/>}
     </div>
   );
 }
@@ -2199,6 +2252,7 @@ export default function ReconDashboard() {
   const [dark, setDark]               = useState(false);
   const [fontSize, setFontSize]       = useState("14px");
   const [showSettings, setShowSettings]   = useState(false);
+  const [printQueue, setPrintQueue]       = useState([]); // vehicles queued for 4-up jacket print
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [axcessaFile,  setAxcessaFile]    = useState(null);
   const axcessaFileRef = useRef(null);
@@ -2207,6 +2261,12 @@ export default function ReconDashboard() {
   const [swipeUndo, setSwipeUndo]       = useState(null); // {msg,carId,fromStage,nextStageId,clearedFields,timerId}
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
+
+  // Toggle a vehicle in/out of the print queue (identified by id)
+  const togglePrintQueue = useCallback(car => {
+    setPrintQueue(q => q.some(c => c.id === car.id) ? q.filter(c => c.id !== car.id) : [...q, car]);
+  }, []);
+  const printQueueIds = useMemo(() => new Set(printQueue.map(c => c.id)), [printQueue]);
 
   // ── Activity log helper (creates a system note entry) ──────────────────────
   const sysLog = text => ({
@@ -2864,6 +2924,17 @@ export default function ReconDashboard() {
             {currentRole!=="viewer"&&(
               <button onClick={()=>setAdding(true)} style={{...btn("#14532d","#4ade80"),fontSize:"11px",padding:"5px 12px"}}>+ Add</button>
             )}
+            {/* Print queue badge — appears when vehicles are queued */}
+            {printQueue.length > 0 && (
+              <div style={{display:"flex",gap:"2px",alignItems:"center"}}>
+                <button onClick={()=>window.print()}
+                  style={{...btn("#1a2e1a","#4ade80",dark),fontSize:"11px",padding:"5px 10px",color:"#4ade80",fontWeight:700}}>
+                  🖨 Print ({printQueue.length})
+                </button>
+                <button onClick={()=>setPrintQueue([])} title="Clear print queue"
+                  style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"12px",padding:"4px 7px",color:dark?"#94a3b8":"#64748b",lineHeight:1}}>×</button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -3030,7 +3101,9 @@ export default function ReconDashboard() {
         }
       </div>
 
-      {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete} onSwipeAdvance={handleSwipeAdvance} dark={dark} currentRole={currentRole||"viewer"} currentUser={currentUser||""}/>}
+      {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete} onSwipeAdvance={handleSwipeAdvance} dark={dark} currentRole={currentRole||"viewer"} currentUser={currentUser||""} onTogglePrint={togglePrintQueue} printQueueIds={printQueueIds}/>}
+      {/* Print portal — portals outside #root so @media print can hide the whole app */}
+      <PrintSheet vehicles={printQueue}/>
       {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))} dark={dark}/>}
       {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} onClose={()=>setShowSettings(false)} currentRole={currentRole} currentUser={currentUser}/>}
       {showUserMgmt&&<UserManagementModal onClose={()=>setShowUserMgmt(false)} dark={dark}/>}
