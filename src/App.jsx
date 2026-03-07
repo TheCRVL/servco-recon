@@ -827,6 +827,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
   const [confirmNote, setConfirmNote]     = useState(false);
   const [noteText, setNoteText]           = useState("");
   const [noteAuthor, setNoteAuthor]       = useState(currentUser||"");
+  const [linkCopied, setLinkCopied]       = useState(false);
 
   // ── Tinder-style swipe (mobile-only) ──────────────────────────────────────
   const isMobile        = useIsMobile();
@@ -1060,6 +1061,21 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
           </div>
           <div style={{display:"flex",gap:"6px",alignItems:"center",flexShrink:0}}>
             <span style={{background:badge.bg,color:badge.fg,fontSize:"11px",fontWeight:700,fontFamily:"monospace",padding:"3px 8px",borderRadius:"5px",whiteSpace:"nowrap"}}>T2L {badge.label}</span>
+            {form.vin && (
+              <button
+                title="Copy link to this vehicle"
+                onClick={() => {
+                  const url = `${window.location.origin}${window.location.pathname}?vin=${form.vin}`;
+                  navigator.clipboard.writeText(url).then(() => {
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  }).catch(() => {});
+                }}
+                style={{background:"none",border:`1px solid ${dark?"#334155":"#e2e8f0"}`,color:linkCopied?"#22c55e":(dark?"#64748b":"#94a3b8"),borderRadius:"6px",padding:"6px 9px",cursor:"pointer",fontSize:"13px",transition:"color 0.15s",lineHeight:1}}
+              >
+                {linkCopied ? "✓" : "🔗"}
+              </button>
+            )}
             <button onClick={handleClose} style={{background:"none",border:"1px solid #334155",color:"#94a3b8",borderRadius:"6px",padding:"6px 10px",cursor:"pointer",fontSize:"13px"}}>✕</button>
           </div>
         </div>
@@ -1482,7 +1498,7 @@ function useDragScroll() {
 
 
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
-function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false, readonly=false, isFiltering=false, onTogglePrint, printQueueIds=new Set() }) {
+function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false, readonly=false, isFiltering=false, onTogglePrint, printQueueIds=new Set(), onToast }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
   // When filtering/searching, collapse stages that have no matching vehicles
@@ -1699,6 +1715,26 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onTo
                 <span>{inQueue?"Remove from Print Queue":"Add to Print Queue"}</span>
               </button>
             ); })()}
+          </>}
+          {/* Share vehicle */}
+          {ctxCar.vin && <>
+            <div style={{height:"1px",background:dark?"#1e293b":"#e2e8f0",margin:"4px 0"}}/>
+            <button
+              onClick={()=>{
+                const url = `${window.location.origin}${window.location.pathname}?vin=${ctxCar.vin}`;
+                navigator.clipboard.writeText(url).then(()=>{
+                  onToast && onToast("🔗 Link copied!");
+                }).catch(()=>{
+                  onToast && onToast("🔗 Link copied!");
+                });
+                closeCtx();
+              }}
+              style={{display:"flex",alignItems:"center",gap:"8px",width:"100%",padding:"8px 10px",background:"none",border:"none",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:700,color:dark?"#94a3b8":"#64748b",textAlign:"left"}}
+              onMouseEnter={e=>e.currentTarget.style.background=dark?"#1e293b":"#f8fafc"}
+              onMouseLeave={e=>e.currentTarget.style.background="none"}>
+              <span>🔗</span>
+              <span>Share Vehicle</span>
+            </button>
           </>}
         </div>
       )}
@@ -1938,6 +1974,14 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
   const [restoreMsg,     setRestoreMsg]     = useState("");
   const [confirmRestore, setConfirmRestore] = useState(false);
 
+  // ── Automated reports state ─────────────────────────────────────────────
+  const [rptSettings,   setRptSettings]   = useState(null);   // null=loading
+  const [rptRecipTxt,   setRptRecipTxt]   = useState("");      // textarea raw text
+  const [rptEnabled,    setRptEnabled]    = useState(false);
+  const [rptSaving,     setRptSaving]     = useState(false);
+  const [rptSending,    setRptSending]    = useState(false);
+  const [rptMsg,        setRptMsg]        = useState("");      // status feedback
+
   const fmtHST = iso =>
     iso
       ? new Date(iso).toLocaleString("en-US", {
@@ -1954,6 +1998,67 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
       .then(d => d && setLastBackup(d.lastBackup || null))
       .catch(() => {});
   }, [isAdmin]);
+
+  // Load report settings on mount (admin only)
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/report-settings", { headers: { Authorization: `Bearer ${NOTION_TOKEN}` } })
+      .then(r => r.headers.get("content-type")?.includes("application/json") ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        setRptSettings(d);
+        setRptEnabled(!!d.enabled);
+        setRptRecipTxt((d.recipients || []).join("\n"));
+      })
+      .catch(() => setRptSettings({}));
+  }, [isAdmin]);
+
+  // Save report settings
+  const saveRptSettings = async (patch) => {
+    setRptSaving(true); setRptMsg("");
+    try {
+      const recipients = rptRecipTxt.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+      const r = await fetch("/api/report-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${NOTION_TOKEN}` },
+        body: JSON.stringify({ recipients, enabled: rptEnabled, ...patch }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setRptSettings(d);
+        setRptMsg("✓ Settings saved");
+      } else {
+        setRptMsg(`❌ ${d.error || "Save failed"}`);
+      }
+    } catch (e) {
+      setRptMsg(`❌ ${e.message}`);
+    }
+    setRptSaving(false);
+    setTimeout(() => setRptMsg(""), 4000);
+  };
+
+  // Send report now
+  const sendRptNow = async () => {
+    setRptSending(true); setRptMsg("");
+    try {
+      const r = await fetch("/api/send-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${NOTION_TOKEN}` },
+      });
+      const d = await r.json();
+      if (r.ok && d.success) {
+        setRptMsg(`✓ Sent to ${d.recipients?.length || "?"} recipient${(d.recipients?.length||1)!==1?"s":""}`);
+        setRptSettings(s => ({ ...s, lastSent: d.sentAt, lastStatus: "ok", lastError: null }));
+      } else {
+        setRptMsg(`❌ ${d.error || "Send failed"}`);
+        setRptSettings(s => ({ ...s, lastStatus: "error", lastError: d.error }));
+      }
+    } catch (e) {
+      setRptMsg(`❌ ${e.message}`);
+    }
+    setRptSending(false);
+    setTimeout(() => setRptMsg(""), 6000);
+  };
 
   // Safely parse JSON — throws a readable error if the API returns HTML (not yet deployed)
   const safeJson = async r => {
@@ -2003,7 +2108,7 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
   };
 
   return (
-    <div style={{position:"fixed",bottom:"72px",right:"20px",zIndex:9999,background:bg,border:`1px solid ${border}`,borderRadius:"14px",padding:"20px",width:"280px",boxShadow:dark?"0 8px 40px rgba(0,0,0,0.6)":"0 8px 40px rgba(0,0,0,0.15)",fontFamily:"'DM Sans',sans-serif"}}>
+    <div style={{position:"fixed",bottom:"72px",right:"20px",zIndex:9999,background:bg,border:`1px solid ${border}`,borderRadius:"14px",padding:"20px",width:"280px",boxShadow:dark?"0 8px 40px rgba(0,0,0,0.6)":"0 8px 40px rgba(0,0,0,0.15)",fontFamily:"'DM Sans',sans-serif",maxHeight:"calc(100vh - 100px)",overflowY:"auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
         <span style={{fontSize:"13px",fontWeight:800,color:text,letterSpacing:"0.04em",textTransform:"uppercase"}}>⚙ Settings</span>
         <button onClick={onClose} style={{background:"none",border:"none",color:sub,cursor:"pointer",fontSize:"16px",padding:"0",lineHeight:1}}>✕</button>
@@ -2073,6 +2178,70 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
             <div style={{fontSize:"11px",color:restoreMsg.startsWith("✓")?(dark?"#4ade80":"#15803d"):(dark?"#f87171":"#dc2626"),marginTop:"8px",fontWeight:600}}>
               {restoreMsg}
             </div>
+          )}
+
+          {/* ── Automated Reports ──────────────────────────────────────────── */}
+          <div style={{borderTop:`1px solid ${border}`,margin:"16px 0"}}/>
+          <div style={{fontSize:"11px",fontWeight:800,color:sub,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:"10px"}}>📧 Automated Reports</div>
+
+          {rptSettings === null ? (
+            <div style={{fontSize:"11px",color:sub}}>Loading…</div>
+          ) : (
+            <>
+              {/* Enable/Disable toggle */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}}>
+                <div style={{fontSize:"12px",fontWeight:600,color:text}}>Daily report at 5:30 AM HST</div>
+                <div onClick={()=>setRptEnabled(v=>!v)} style={{width:"36px",height:"20px",borderRadius:"10px",background:rptEnabled?"#3b82f6":"#475569",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+                  <div style={{position:"absolute",top:"2px",left:rptEnabled?"17px":"2px",width:"16px",height:"16px",borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
+                </div>
+              </div>
+
+              {/* Recipients textarea */}
+              <div style={{fontSize:"10px",fontWeight:700,color:sub,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:"4px"}}>Recipients (one per line)</div>
+              <textarea
+                value={rptRecipTxt}
+                onChange={e=>setRptRecipTxt(e.target.value)}
+                placeholder={"kaipo@servco.com\njohn@servco.com"}
+                rows={3}
+                style={{width:"100%",padding:"7px 9px",borderRadius:"7px",border:`1px solid ${border}`,background:dark?"#0a0f1a":"#f8fafc",color:text,fontSize:"11px",fontFamily:"monospace",resize:"vertical",boxSizing:"border-box",outline:"none",marginBottom:"8px"}}
+              />
+
+              {/* Save Settings */}
+              <button
+                onClick={()=>saveRptSettings({})}
+                disabled={rptSaving}
+                style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0",dark),width:"100%",marginBottom:"6px",fontSize:"12px",opacity:rptSaving?0.6:1,color:dark?"#e2e8f0":"#475569"}}
+              >
+                {rptSaving ? "Saving…" : "💾 Save Settings"}
+              </button>
+
+              {/* Send Now */}
+              <button
+                onClick={sendRptNow}
+                disabled={rptSending}
+                style={{...btn(dark?"#1e3a5f":"#eff6ff",dark?"#2563eb":"#2563eb",dark),width:"100%",marginBottom:"6px",fontSize:"12px",opacity:rptSending?0.6:1,color:dark?"#93c5fd":"#1d4ed8"}}
+              >
+                {rptSending ? "Sending…" : "📤 Send Report Now"}
+              </button>
+
+              {/* Feedback message */}
+              {rptMsg && (
+                <div style={{fontSize:"11px",color:rptMsg.startsWith("✓")?(dark?"#4ade80":"#15803d"):(dark?"#f87171":"#dc2626"),marginBottom:"6px",fontWeight:600}}>
+                  {rptMsg}
+                </div>
+              )}
+
+              {/* Last sent status */}
+              {rptSettings.lastSent && (
+                <div style={{fontSize:"11px",color:sub,marginTop:"4px"}}>
+                  Last sent: <span style={{color:text,fontWeight:600}}>{fmtHST(rptSettings.lastSent)}</span>
+                  {rptSettings.lastStatus === "ok" && <span style={{color:dark?"#4ade80":"#16a34a",marginLeft:"6px",fontWeight:700}}>✓ OK</span>}
+                  {rptSettings.lastStatus === "error" && (
+                    <span style={{color:dark?"#f87171":"#dc2626",marginLeft:"6px",fontWeight:700}} title={rptSettings.lastError||""}>⚠ Error</span>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -2272,6 +2441,11 @@ export default function ReconDashboard() {
   const mobileMenuRef  = useRef(null);
   const isDesktop = useIsDesktop();
   const [swipeUndo, setSwipeUndo]       = useState(null); // {msg,carId,fromStage,nextStageId,clearedFields,timerId}
+  // VIN deep-link: read ?vin= from URL on load; open that vehicle after login + data load
+  const [pendingVin, setPendingVin]     = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("vin") || null; }
+    catch (_) { return null; }
+  });
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
 
@@ -2347,6 +2521,20 @@ export default function ReconDashboard() {
       document.removeEventListener("touchstart", handler);
     };
   }, [showMobileMenu]);
+
+  // VIN deep-link: after login + cars load, auto-open the vehicle whose VIN is in the URL
+  useEffect(() => {
+    if (!pendingVin || splash || cars.length === 0) return;
+    const car = cars.find(c => c.vin && c.vin.toUpperCase() === pendingVin.toUpperCase());
+    // Always clean URL and clear pending, whether found or not
+    setPendingVin(null);
+    window.history.replaceState({}, "", window.location.pathname);
+    if (car) {
+      setSelected(car);
+    } else {
+      toast(`⚠ No vehicle found for VIN ${pendingVin.slice(0, 8)}…`);
+    }
+  }, [pendingVin, cars, splash]); // eslint-disable-line
 
   // Shift+V → open Add Vehicle modal
   useEffect(() => {
@@ -2692,7 +2880,7 @@ export default function ReconDashboard() {
         onMouseEnter={e=>e.currentTarget.style.color="#1d4ed8"}
         onMouseLeave={e=>e.currentTarget.style.color="#334155"}
       >
-        V 1 . 5  · Axcessa Import Update
+        V 1 . 5 . 6  · Email Reports & Deep Linking
       </a>
       <div style={{
         fontSize:"11px",
@@ -3109,7 +3297,7 @@ export default function ReconDashboard() {
         {loading
           ? <div style={{textAlign:"center",padding:"60px",color:dark?"#334155":"#94a3b8",fontSize:"14px"}}>Loading from Notion…</div>
           : view==="kanban"
-            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"} isFiltering={isFiltering} onTogglePrint={togglePrintQueue} printQueueIds={printQueueIds}/>
+            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"} isFiltering={isFiltering} onTogglePrint={togglePrintQueue} printQueueIds={printQueueIds} onToast={toast}/>
             : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
         }
       </div>
