@@ -121,6 +121,25 @@ function getIssueTags(car, dark=false) {
   return tags;
 }
 
+// ─── FILTERABLE TAG DEFINITIONS ───────────────────────────────────────────────
+// Used by both the filter panel UI and the filtered list logic.
+// "1 key" tag is excluded per design — use the Keys field directly if needed.
+const TAG_FILTER_DEFS = [
+  // Issue flags (problems / blockers)
+  { key:"noTitleRcvd",   label:"No Title RCVD",  group:"issue",  emoji:"📄", test:c=>!c.titleRcvd },
+  { key:"regExp",        label:"REG EXP",         group:"issue",  emoji:"🪪", test:c=>isExpired(c.regExp) },
+  { key:"scExp",         label:"SC EXP",          group:"issue",  emoji:"🔍", test:c=>isExpired(c.scExp) },
+  { key:"stuck21d",      label:"21d+ Stuck",      group:"issue",  emoji:"⚠️", test:c=>daysSince(c.acquiredDate)>21&&!["frontline","sold"].includes(c.stage) },
+  { key:"noStockNo",     label:"No Stock #",      group:"issue",  emoji:"🏷️", test:c=>!c.stockNo },
+  { key:"dmvPending",    label:"DMV Pending",     group:"issue",  emoji:"🏛️", test:c=>!c.sentDMV&&!!c.titleRcvd },
+  { key:"spiPending",    label:"SPI Pending",     group:"issue",  emoji:"📋", test:c=>!c.spiTitle&&!!c.sentDMV },
+  // Car toggles / tags
+  { key:"partsHold",     label:"Parts Hold",      group:"toggle", emoji:"🔩", test:c=>!!c.partsHold },
+  { key:"needsBodyWork", label:"Needs Body Work", group:"toggle", emoji:"🔨", test:c=>!!c.needsBodyWork },
+  { key:"online",        label:"Online",          group:"toggle", emoji:"🟢", test:c=>!!c.upForSale },
+  { key:"noPlates",      label:"No Plates",       group:"toggle", emoji:"🚗", test:c=>!!c.noPlates },
+];
+
 // ─── CONFETTI ─────────────────────────────────────────────────────────────────
 function Confetti({ active, onDone }) {
   const canvasRef = useRef(null);
@@ -1405,6 +1424,10 @@ export default function ReconDashboard() {
   const [search, setSearch]           = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [rwFilter, setRwFilter]       = useState("all");
+  const [tagFilters, setTagFilters]         = useState([]);       // array of TAG_FILTER_DEFS keys
+  const [titleStateFilter, setTitleStateFilter] = useState("all"); // "all" | "HI" | "ML"
+  const [hasPayoffFilter, setHasPayoffFilter]   = useState(false);
+  const [showFilters, setShowFilters]           = useState(false);
   const [notionMode, setNotionMode]   = useState(false);
   const [status, setStatus]           = useState("");
   const [loading, setLoading]         = useState(false);
@@ -1665,10 +1688,19 @@ export default function ReconDashboard() {
   const dupVINs = getDupVINs(activeCars);
   const filtered = activeCars.filter(c=>{
     const q=search.toLowerCase();
-    return (!q||[c.stockNo,c.make,c.model,c.vin].some(v=>(v||"").toLowerCase().includes(q)))
-        &&(stageFilter==="all"||c.stage===stageFilter)
-        &&(rwFilter==="all"||c.rw===rwFilter);
+    if (q && ![c.stockNo,c.make,c.model,c.vin].some(v=>(v||"").toLowerCase().includes(q))) return false;
+    if (stageFilter!=="all" && c.stage!==stageFilter) return false;
+    if (rwFilter!=="all" && c.rw!==rwFilter) return false;
+    if (titleStateFilter!=="all" && c.titleState!==titleStateFilter) return false;
+    if (hasPayoffFilter && !c.payoffBank) return false;
+    for (const key of tagFilters) {
+      const def = TAG_FILTER_DEFS.find(d=>d.key===key);
+      if (def && !def.test(c)) return false;
+    }
+    return true;
   });
+  const activePanelFilters = tagFilters.length + (titleStateFilter!=="all"?1:0) + (hasPayoffFilter?1:0);
+  const clearPanelFilters = () => { setTagFilters([]); setTitleStateFilter("all"); setHasPayoffFilter(false); };
 
 
   // ─── SPLASH SCREEN ──────────────────────────────────────────────────────────
@@ -1928,26 +1960,117 @@ export default function ReconDashboard() {
         <StatsBar cars={cars}/>
 
         {/* CONTROLS */}
-        <div className="controls-row" style={{display:"flex",gap:"8px",marginBottom:"14px",flexWrap:"wrap",alignItems:"center"}}>
+        <div className="controls-row" style={{display:"flex",gap:"8px",marginBottom:"8px",flexWrap:"wrap",alignItems:"center"}}>
           <input placeholder="Search stock #, VIN, make, model…" value={search} onChange={e=>setSearch(e.target.value)}
-            style={{...input({width:"240px"}),fontFamily:"'DM Sans',sans-serif"}}/>
-          <select value={stageFilter} onChange={e=>setStageFilter(e.target.value)} style={input({width:"160px"})}>
+            style={{...input({width:"240px"},dark),fontFamily:"'DM Sans',sans-serif"}}/>
+          <select value={stageFilter} onChange={e=>setStageFilter(e.target.value)} style={input({width:"150px"},dark)}>
             <option value="all">All Stages</option>
             {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
           <div className="rw-btns" style={{display:"flex",gap:"4px"}}>
             {[["all","All"],["R","Retail"],["W","Wholesale"]].map(([val,label])=>(
-              <button key={val} onClick={()=>setRwFilter(val)} style={{...btn(rwFilter===val?"#1e40af":"#1e293b",rwFilter===val?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 10px"}}>{label}</button>
+              <button key={val} onClick={()=>setRwFilter(val)} style={{...btn(rwFilter===val?"#1e40af":"#1e293b",rwFilter===val?"#3b82f6":"#334155",dark),fontSize:"11px",padding:"5px 10px"}}>{label}</button>
             ))}
           </div>
+          {/* Filter panel toggle */}
+          <button onClick={()=>setShowFilters(f=>!f)} style={{
+            fontSize:"11px", padding:"5px 12px", borderRadius:"8px", cursor:"pointer",
+            fontFamily:"inherit", fontWeight:700, border:"1px solid",
+            background: showFilters?(dark?"#1e3a5f":"#1e40af"):(dark?"#1e293b":"#f1f5f9"),
+            borderColor: showFilters?(dark?"#38bdf8":"#3b82f6"):(dark?"#334155":"#cbd5e1"),
+            color: showFilters?"#fff":(dark?"#94a3b8":"#64748b"),
+            display:"flex", alignItems:"center", gap:"5px",
+          }}>
+            🔍 Filters
+            {activePanelFilters>0&&<span style={{background:"#dc2626",color:"#fff",borderRadius:"9999px",fontSize:"9px",padding:"1px 6px",fontWeight:800,lineHeight:"16px"}}>{activePanelFilters}</span>}
+            <span style={{fontSize:"9px",opacity:0.6}}>{showFilters?"▲":"▼"}</span>
+          </button>
           <div className="view-btns" style={{marginLeft:"auto",display:"flex",gap:"4px"}}>
             {["kanban","table"].map(v=>(
-              <button key={v} onClick={()=>setView(v)} style={{...btn(view===v?"#1e40af":"#1e293b",view===v?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 12px"}}>
+              <button key={v} onClick={()=>setView(v)} style={{...btn(view===v?"#1e40af":"#1e293b",view===v?"#3b82f6":"#334155",dark),fontSize:"11px",padding:"5px 12px"}}>
                 {v==="kanban"?"⬜ Board":"☰ Table"}
               </button>
             ))}
           </div>
         </div>
+
+        {/* ── FILTER PANEL ─────────────────────────────────────────────────── */}
+        {showFilters&&(
+          <div style={{background:dark?"#0a0f1a":"#f8fafc",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderRadius:"10px",padding:"14px 16px",marginBottom:"10px",display:"flex",flexDirection:"column",gap:"11px"}}>
+
+            {/* Title State */}
+            <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap"}}>
+              <span style={{fontSize:"10px",fontWeight:700,color:dark?"#475569":"#94a3b8",letterSpacing:"0.08em",textTransform:"uppercase",minWidth:"82px"}}>Title State</span>
+              <div style={{display:"flex",gap:"4px",flexWrap:"wrap"}}>
+                {[["all","All"],["HI","🌺 Hawaii"],["ML","✈️ Mainland"]].map(([val,label])=>(
+                  <button key={val} onClick={()=>setTitleStateFilter(val)} style={{
+                    fontSize:"11px",padding:"4px 11px",borderRadius:"6px",cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:"1px solid",
+                    background:titleStateFilter===val?(dark?"#1e3a5f":"#1e40af"):(dark?"#1e293b":"#ffffff"),
+                    borderColor:titleStateFilter===val?(dark?"#38bdf8":"#3b82f6"):(dark?"#334155":"#d1d5db"),
+                    color:titleStateFilter===val?"#fff":(dark?"#94a3b8":"#64748b"),
+                  }}>{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Payoff Bank */}
+            <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap"}}>
+              <span style={{fontSize:"10px",fontWeight:700,color:dark?"#475569":"#94a3b8",letterSpacing:"0.08em",textTransform:"uppercase",minWidth:"82px"}}>Payoff Bank</span>
+              <button onClick={()=>setHasPayoffFilter(f=>!f)} style={{
+                fontSize:"11px",padding:"4px 12px",borderRadius:"6px",cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:"1px solid",
+                background:hasPayoffFilter?(dark?"#1e3a5f":"#1e40af"):(dark?"#1e293b":"#ffffff"),
+                borderColor:hasPayoffFilter?(dark?"#38bdf8":"#3b82f6"):(dark?"#334155":"#d1d5db"),
+                color:hasPayoffFilter?"#fff":(dark?"#94a3b8":"#64748b"),
+              }}>💳 Has Payoff Bank{hasPayoffFilter&&" ✓"}</button>
+            </div>
+
+            {/* Issue Flags */}
+            <div style={{display:"flex",alignItems:"flex-start",gap:"10px",flexWrap:"wrap"}}>
+              <span style={{fontSize:"10px",fontWeight:700,color:dark?"#475569":"#94a3b8",letterSpacing:"0.08em",textTransform:"uppercase",minWidth:"82px",paddingTop:"5px"}}>Issue Flags</span>
+              <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
+                {TAG_FILTER_DEFS.filter(d=>d.group==="issue").map(def=>{
+                  const on=tagFilters.includes(def.key);
+                  return(
+                    <button key={def.key} onClick={()=>setTagFilters(f=>on?f.filter(k=>k!==def.key):[...f,def.key])} style={{
+                      fontSize:"11px",padding:"4px 10px",borderRadius:"6px",cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:"1px solid",
+                      background:on?(dark?"#3f0e0e":"#dc2626"):(dark?"#1e293b":"#ffffff"),
+                      borderColor:on?(dark?"#f87171":"#dc2626"):(dark?"#334155":"#d1d5db"),
+                      color:on?"#fff":(dark?"#94a3b8":"#64748b"),
+                    }}>{def.emoji} {def.label}</button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Car Tags */}
+            <div style={{display:"flex",alignItems:"flex-start",gap:"10px",flexWrap:"wrap"}}>
+              <span style={{fontSize:"10px",fontWeight:700,color:dark?"#475569":"#94a3b8",letterSpacing:"0.08em",textTransform:"uppercase",minWidth:"82px",paddingTop:"5px"}}>Car Tags</span>
+              <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
+                {TAG_FILTER_DEFS.filter(d=>d.group==="toggle").map(def=>{
+                  const on=tagFilters.includes(def.key);
+                  return(
+                    <button key={def.key} onClick={()=>setTagFilters(f=>on?f.filter(k=>k!==def.key):[...f,def.key])} style={{
+                      fontSize:"11px",padding:"4px 10px",borderRadius:"6px",cursor:"pointer",fontFamily:"inherit",fontWeight:600,border:"1px solid",
+                      background:on?(dark?"#1e3a5f":"#1e40af"):(dark?"#1e293b":"#ffffff"),
+                      borderColor:on?(dark?"#38bdf8":"#3b82f6"):(dark?"#334155":"#d1d5db"),
+                      color:on?"#fff":(dark?"#94a3b8":"#64748b"),
+                    }}>{def.emoji} {def.label}</button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Clear all (only when filters active) */}
+            {activePanelFilters>0&&(
+              <div style={{display:"flex",justifyContent:"flex-end",borderTop:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,paddingTop:"10px",marginTop:"2px"}}>
+                <button onClick={clearPanelFilters} style={{
+                  fontSize:"11px",padding:"4px 14px",borderRadius:"6px",cursor:"pointer",fontFamily:"inherit",fontWeight:600,
+                  background:"none",border:`1px solid ${dark?"#334155":"#cbd5e1"}`,color:dark?"#64748b":"#94a3b8",
+                }}>✕ Clear All Filters</button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{fontSize:"11px",color:dark?"#334155":"#94a3b8",marginBottom:"12px"}}>
           Showing <span style={{color:dark?"#64748b":"#475569",fontWeight:700}}>{filtered.length}</span> of {cars.length} vehicles
