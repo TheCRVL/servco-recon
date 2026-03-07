@@ -218,6 +218,14 @@ const btn = (bg, border, dark=false) => {
   };
 };
 
+const mobileMenuItem = (dark) => ({
+  width:"100%", padding:"9px 12px", background:"none", border:"none",
+  borderRadius:"7px", cursor:"pointer", fontSize:"13px", fontWeight:600,
+  fontFamily:"'DM Sans',sans-serif", textAlign:"left",
+  color: dark ? "#e2e8f0" : "#1e293b",
+  transition:"background 0.1s",
+});
+
 // ─── NOTION API ───────────────────────────────────────────────────────────────
 async function notionFetch(path, method="GET", body=null) {
   // Calls our Vercel serverless function — no CORS issues
@@ -1387,6 +1395,34 @@ function KanbanCard({ car, stage, onCarClick, isDupVIN, onDragStart, isDragging,
   );
 }
 
+// ─── SEARCH RESULTS VIEW (flat list, no stage grouping) ──────────────────────
+function SearchResultsView({ cars, onCarClick, dupVINs, dark=false }) {
+  const sub = dark ? "#475569" : "#94a3b8";
+  if (cars.length === 0) return (
+    <div style={{textAlign:"center",padding:"60px 0",color:sub,fontSize:"14px",fontFamily:"'DM Sans',sans-serif"}}>No Results</div>
+  );
+  return (
+    <div>
+      <div style={{fontSize:"11px",fontWeight:700,color:sub,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:"12px",fontFamily:"'DM Sans',sans-serif"}}>
+        Stages Hidden · Results: {cars.length}
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
+        {cars.map(car=>{
+          const stage = STAGES.find(s=>s.id===car.stage)||STAGES[0];
+          return (
+            <div key={car.id} style={{width:"190px",flexShrink:0}}>
+              <KanbanCard car={car} stage={stage} onCarClick={onCarClick}
+                isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}
+                onDragStart={()=>{}} isDragging={false} isGhost={false} dark={dark}
+                onContextMenu={null}/>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── DRAG SCROLL HOOK ────────────────────────────────────────────────────────
 function useDragScroll() {
   const ref = useRef(null);
@@ -1483,52 +1519,62 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onTo
       <div ref={drag.ref} onMouseDown={drag.onMouseDown} onMouseMove={drag.onMouseMove} onMouseUp={drag.onMouseUp} onMouseLeave={drag.onMouseLeave}
         style={{display:"flex",gap:"10px",overflowX:"auto",padding:"4px 0 16px",minHeight:"400px",cursor:draggingId?"default":"grab",scrollbarWidth:"thin"}}>
         {PIPELINE_STAGES.map(stage=>{
-          const col = pipelineCars.filter(c=>c.stage===stage.id);
+          const col    = pipelineCars.filter(c=>c.stage===stage.id);
           const isOver = overStage===stage.id;
+          // ── Snake layout: max 25 per sub-column, even-indexed cols reversed ──
+          const SNAKE_MAX = 25;
+          const subCols = [];
+          for (let i = 0; i < col.length; i += SNAKE_MAX) {
+            const chunk = col.slice(i, i + SNAKE_MAX);
+            subCols.push(subCols.length % 2 === 1 ? [...chunk].reverse() : chunk);
+          }
+          if (subCols.length === 0) subCols.push([]);
+          const headerW = subCols.length * 190 + (subCols.length - 1) * 8;
           return (
-            <div key={stage.id} style={{minWidth:"190px",width:"190px",flexShrink:0,transition:"transform 0.15s"}}
+            <div key={stage.id} style={{flexShrink:0,transition:"all 0.15s",borderRadius:"8px",outline:isOver?`2px solid ${stage.accent}`:"none"}}
               onDragOver={e=>handleDragOver(e,stage.id)}
               onDragLeave={()=>setOverStage(null)}
               onDrop={e=>handleDrop(e,stage.id)}>
+              {/* Stage header — spans all sub-columns */}
               <div style={{
                 display:"flex",justifyContent:"space-between",alignItems:"center",
-                padding:"7px 10px",
+                padding:"7px 10px",width:`${headerW}px`,
                 background: isOver ? stage.color+"dd" : (dark ? stage.color+"44" : stage.color+"bb"),
                 borderRadius:"8px 8px 0 0",
                 borderBottom:`2px solid ${stage.accent}`,
                 marginBottom:"8px",
                 transition:"background 0.15s",
-                boxShadow: isOver ? `0 0 0 2px ${stage.accent}` : "none",
               }}>
                 <span style={{fontSize:"10px",fontWeight:800,color:stage.accent,letterSpacing:"0.08em",textTransform:"uppercase"}}>{stage.label}</span>
                 <span style={{background:stage.accent+"33",color:stage.accent,borderRadius:"12px",fontSize:"11px",fontWeight:700,padding:"1px 6px"}}>{col.length}</span>
               </div>
-              <div style={{
-                display:"flex",flexDirection:"column",gap:"7px",
-                minHeight:"60px",
-                borderRadius:"0 0 8px 8px",
-                padding: isOver ? "6px" : "0",
-                background: isOver ? stage.color+"22" : "transparent",
-                border: isOver ? `1px dashed ${stage.accent}88` : "1px solid transparent",
-                transition:"all 0.15s",
-              }}>
-                {col.map(car=>(
-                  <KanbanCard key={car.id}
-                    car={car} stage={stage}
-                    onCarClick={c=>{ if(!draggingId) onCarClick(c); }}
-                    isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}
-                    onDragStart={handleDragStart}
-                    isDragging={draggingId===car.id}
-                    isGhost={false}
-                    dark={dark}
-                    onContextMenu={(e,c)=>{
-                      e.preventDefault();
-                      const vp = {x:Math.min(e.clientX,window.innerWidth-220), y:Math.min(e.clientY,window.innerHeight-220)};
-                      setCtxMenu({visible:true,x:vp.x,y:vp.y,carId:c.id});
-                    }}/>
+              {/* Sub-columns (snake) */}
+              <div style={{display:"flex",gap:"8px"}}>
+                {subCols.map((chunk, ci)=>(
+                  <div key={ci} style={{
+                    width:"190px",flexShrink:0,display:"flex",flexDirection:"column",gap:"7px",
+                    minHeight:"60px",padding: isOver&&ci===0 ? "4px" : "0",
+                    background: isOver&&ci===0 ? stage.color+"22" : "transparent",
+                    transition:"all 0.15s",
+                  }}>
+                    {chunk.map(car=>(
+                      <KanbanCard key={car.id}
+                        car={car} stage={stage}
+                        onCarClick={c=>{ if(!draggingId) onCarClick(c); }}
+                        isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}
+                        onDragStart={handleDragStart}
+                        isDragging={draggingId===car.id}
+                        isGhost={false} dark={dark}
+                        onContextMenu={(e,c)=>{
+                          e.preventDefault();
+                          const vp={x:Math.min(e.clientX,window.innerWidth-220),y:Math.min(e.clientY,window.innerHeight-220)};
+                          setCtxMenu({visible:true,x:vp.x,y:vp.y,carId:c.id});
+                        }}/>
+                    ))}
+                    {ci===0&&isOver&&draggingId&&<KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false} dark={dark}/>}
+                    {ci===0&&col.length===0&&!isOver&&<div style={{textAlign:"center",color:dark?"#1e293b":"#cbd5e1",fontSize:"12px",padding:"20px 0"}}>—</div>}
+                  </div>
                 ))}
-                {isOver && draggingId && <KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false} dark={dark}/>}
-                {col.length===0&&!isOver&&<div style={{textAlign:"center",color:dark?"#1e293b":"#cbd5e1",fontSize:"12px",padding:"20px 0"}}>—</div>}
               </div>
             </div>
           );
@@ -2172,10 +2218,12 @@ export default function ReconDashboard() {
   const [syncAgo, setSyncAgo]         = useState("");
   const [dark, setDark]               = useState(false);
   const [fontSize, setFontSize]       = useState("14px");
-  const [showSettings, setShowSettings] = useState(false);
-  const [axcessaFile,  setAxcessaFile]  = useState(null);
+  const [showSettings, setShowSettings]   = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [axcessaFile,  setAxcessaFile]    = useState(null);
   const axcessaFileRef = useRef(null);
   const isDesktop = useIsDesktop();
+  const isMobile  = !isDesktop;
   const [swipeUndo, setSwipeUndo]       = useState(null); // {msg,carId,fromStage,nextStageId,clearedFields,timerId}
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
@@ -2710,13 +2758,17 @@ export default function ReconDashboard() {
         ::-webkit-scrollbar-thumb{background:${dark?"#334155":"#94a3b8"};border-radius:3px;}
         input[type=date]::-webkit-calendar-picker-indicator{filter:${dark?"invert(0.4)":"invert(0.6)"};}
         select option{background:${dark?"#1e293b":"#ffffff"};}
-        @media(max-width:600px){
+        @media(max-width:768px){
           .nav-title{display:none;}
           .controls-row{flex-direction:column!important;align-items:stretch!important;}
           .controls-row input,.controls-row select{width:100%!important;}
           .rw-btns{justify-content:stretch;}
           .rw-btns button{flex:1;}
           .view-btns button{flex:1;}
+          /* Prevent iOS input zoom — font-size must be ≥16px */
+          input,select,textarea{font-size:16px!important;}
+          /* Breathing room on kanban cards for mobile */
+          .kanban-card{padding:14px!important;margin-bottom:2px;}
         }
       `}</style>
 
@@ -2746,42 +2798,78 @@ export default function ReconDashboard() {
 
       {/* NAV */}
       <div style={{background:dark?"#0a0f1a":"#ffffff",borderBottom:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:dark?"none":"0 1px 3px rgba(0,0,0,0.06)"}}>
+        {/* Logo */}
         <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
           <div style={{width:"28px",height:"28px",background:"#dc2626",borderRadius:"6px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px",fontWeight:900,color:"#fff",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>S</div>
           <span style={{fontSize:"15px",fontWeight:800,color:dark?"#f1f5f9":"#1e293b",fontFamily:"'DM Sans',sans-serif",letterSpacing:"-0.02em"}}>SERVCO</span>
           <span className="nav-title" style={{color:"#334155",fontSize:"13px"}}>/</span>
           <span className="nav-title" style={{fontSize:"12px",color:dark?"#475569":"#64748b",fontFamily:"'DM Sans',sans-serif"}}>Recon Pipeline</span>
         </div>
-        <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
-          {notionMode&&!status&&syncAgo&&(
-            <span style={{fontSize:"10px",color:"#475569",padding:"3px 8px",background:"#0f172a",border:"1px solid #1e293b",borderRadius:"6px",whiteSpace:"nowrap",fontFamily:"monospace"}}>
-              ↻ {syncAgo}
-            </span>
-          )}
-          {status&&<span style={{fontSize:"11px",color:"#4ade80",padding:"3px 8px",background:"#14532d33",border:"1px solid #15803d",borderRadius:"6px",whiteSpace:"nowrap"}}>{status}</span>}
-          {/* Logged-in user pill */}
-          {currentUser&&(
-            <span style={{fontSize:"10px",color:dark?"#475569":"#94a3b8",padding:"3px 8px",background:dark?"#0f172a":"#f1f5f9",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderRadius:"6px",whiteSpace:"nowrap",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
-              👤 {currentUser} · {currentRole}
-            </span>
-          )}
-          <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();}} style={{...btn(notionMode?"#1a2744":"#1e293b",notionMode?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 10px"}}>
-            {notionMode?"🔗 Live":"🔗 Notion"}
-          </button>
-          {currentRole==="admin"&&(
-            <button onClick={()=>setShowUserMgmt(true)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",padding:"5px 10px",color:dark?"#94a3b8":"#64748b"}}>
-              👥 Users
+
+        {isMobile ? (
+          /* ── MOBILE NAV ──────────────────────────────────── */
+          <div style={{display:"flex",gap:"6px",alignItems:"center",position:"relative"}}>
+            {!notionMode&&(
+              <span style={{fontSize:"9px",fontWeight:800,color:"#ef4444",padding:"3px 7px",background:"#450a0a",border:"1px solid #dc2626",borderRadius:"6px",letterSpacing:"0.08em"}}>DISCONNECTED</span>
+            )}
+            {notionMode&&!status&&syncAgo&&(
+              <span style={{fontSize:"9px",color:"#475569",padding:"2px 6px",background:"#0f172a",border:"1px solid #1e293b",borderRadius:"6px",whiteSpace:"nowrap",fontFamily:"monospace"}}>↻ {syncAgo}</span>
+            )}
+            {status&&<span style={{fontSize:"10px",color:"#4ade80",padding:"2px 6px",background:"#14532d33",border:"1px solid #15803d",borderRadius:"6px",whiteSpace:"nowrap"}}>{status}</span>}
+            <button onClick={()=>setShowMobileMenu(m=>!m)}
+              style={{...btn(showMobileMenu?(dark?"#1e3a5f":"#1e40af"):(dark?"#1e293b":"#f1f5f9"),showMobileMenu?(dark?"#3b82f6":"#3b82f6"):(dark?"#334155":"#e2e8f0")),fontSize:"16px",padding:"4px 10px",color:showMobileMenu?"#fff":(dark?"#94a3b8":"#64748b"),lineHeight:1}}>⋮</button>
+            {showMobileMenu&&(
+              <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,zIndex:500,background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#334155":"#e2e8f0"}`,borderRadius:"10px",boxShadow:"0 8px 24px rgba(0,0,0,0.35)",minWidth:"160px",padding:"6px",display:"flex",flexDirection:"column",gap:"2px"}}
+                onMouseLeave={()=>setShowMobileMenu(false)}>
+                <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();setShowMobileMenu(false);}}
+                  style={{...mobileMenuItem(dark),color:notionMode?"#60a5fa":(dark?"#94a3b8":"#64748b")}}>
+                  {notionMode?"🔗 Go Offline":"🔗 Connect Notion"}
+                </button>
+                {currentRole==="admin"&&(
+                  <button onClick={()=>{setShowUserMgmt(true);setShowMobileMenu(false);}}
+                    style={mobileMenuItem(dark)}>👥 Users</button>
+                )}
+                <button onClick={()=>{setShowSettings(s=>!s);setShowMobileMenu(false);}}
+                  style={mobileMenuItem(dark)}>⚙ Settings</button>
+                {currentRole!=="viewer"&&(
+                  <button onClick={()=>{setAdding(true);setShowMobileMenu(false);}}
+                    style={{...mobileMenuItem(dark),color:"#4ade80",fontWeight:700}}>+ Add Vehicle</button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ── DESKTOP NAV ─────────────────────────────────── */
+          <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+            {notionMode&&!status&&syncAgo&&(
+              <span style={{fontSize:"10px",color:"#475569",padding:"3px 8px",background:"#0f172a",border:"1px solid #1e293b",borderRadius:"6px",whiteSpace:"nowrap",fontFamily:"monospace"}}>
+                ↻ {syncAgo}
+              </span>
+            )}
+            {status&&<span style={{fontSize:"11px",color:"#4ade80",padding:"3px 8px",background:"#14532d33",border:"1px solid #15803d",borderRadius:"6px",whiteSpace:"nowrap"}}>{status}</span>}
+            {currentUser&&(
+              <span style={{fontSize:"10px",color:dark?"#475569":"#94a3b8",padding:"3px 8px",background:dark?"#0f172a":"#f1f5f9",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderRadius:"6px",whiteSpace:"nowrap",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
+                👤 {currentUser} · {currentRole}
+              </span>
+            )}
+            <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();}} style={{...btn(notionMode?"#1a2744":"#1e293b",notionMode?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 10px"}}>
+              {notionMode?"🔗 Live":"🔗 Notion"}
             </button>
-          )}
-          <button onClick={()=>setShowSettings(s=>!s)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"14px",padding:"5px 8px",color:dark?"#94a3b8":"#64748b"}} title="Settings">⚙</button>
-          {isDesktop && currentRole !== "viewer" && <>
-            <input ref={axcessaFileRef} type="file" accept=".xlsx" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f)setAxcessaFile(f);}}/>
-            <button onClick={()=>axcessaFileRef.current?.click()} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",padding:"5px 10px",color:dark?"#94a3b8":"#64748b"}} title="Import from Axcessa">↑ Axcessa</button>
-          </>}
-          {currentRole!=="viewer"&&(
-            <button onClick={()=>setAdding(true)} style={{...btn("#14532d","#4ade80"),fontSize:"11px",padding:"5px 12px"}}>+ Add</button>
-          )}
-        </div>
+            {currentRole==="admin"&&(
+              <button onClick={()=>setShowUserMgmt(true)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",padding:"5px 10px",color:dark?"#94a3b8":"#64748b"}}>
+                👥 Users
+              </button>
+            )}
+            <button onClick={()=>setShowSettings(s=>!s)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"14px",padding:"5px 8px",color:dark?"#94a3b8":"#64748b"}} title="Settings">⚙</button>
+            {currentRole !== "viewer" && <>
+              <input ref={axcessaFileRef} type="file" accept=".xlsx" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f)setAxcessaFile(f);}}/>
+              <button onClick={()=>axcessaFileRef.current?.click()} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",padding:"5px 10px",color:dark?"#94a3b8":"#64748b"}} title="Import from Axcessa">↑ Axcessa</button>
+            </>}
+            {currentRole!=="viewer"&&(
+              <button onClick={()=>setAdding(true)} style={{...btn("#14532d","#4ade80"),fontSize:"11px",padding:"5px 12px"}}>+ Add</button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* BODY */}
@@ -2917,9 +3005,11 @@ export default function ReconDashboard() {
 
         {loading
           ? <div style={{textAlign:"center",padding:"60px",color:dark?"#334155":"#94a3b8",fontSize:"14px"}}>Loading from Notion…</div>
-          : view==="kanban"
-            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"}/>
-            : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
+          : search.trim() && view==="kanban"
+            ? <SearchResultsView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
+            : view==="kanban"
+              ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"}/>
+              : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
         }
       </div>
 
