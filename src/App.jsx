@@ -392,18 +392,64 @@ function buildImportUpdateProps(v, p, format) {
   return updates;
 }
 
+// Batch-decode VINs via NHTSA vPIC — max 50 per request
+async function decodeVINsBatch(vehicles, onProgress) {
+  const BATCH = 50;
+  const decoded = {}; // keyed by VIN (uppercase)
+  for (let i = 0; i < vehicles.length; i += BATCH) {
+    const chunk = vehicles.slice(i, i + BATCH);
+    onProgress(`Decoding VINs… ${i + 1}–${Math.min(i + BATCH, vehicles.length)} of ${vehicles.length}`);
+    // Format: VIN;modelYear,VIN;modelYear,...
+    const dataStr = chunk.map(v => `${v.vin};${v.year || ""}`).join(",");
+    try {
+      const res  = await fetch("https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvaluesbatch", {
+        method:  "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body:    `DATA=${encodeURIComponent(dataStr)}`,
+      });
+      const json = await res.json();
+      for (const r of (json.Results || [])) {
+        const vin   = (r.VIN       || "").toUpperCase();
+        const make  = (r.Make      || "").trim();
+        const model = (r.Model     || "").trim();
+        const year  = (r.ModelYear || "").trim();
+        const body  = (r.BodyClass || "").trim();
+        if (vin && make && model && year) {
+          decoded[vin] = { make, model: body ? `${model} (${body})` : model, year };
+        } else if (vin) {
+          decoded[vin] = null; // decode returned empty — will fall back to Axcessa values
+        }
+      }
+    } catch (_) {
+      // Whole batch request failed — mark all VINs in chunk as fallback
+      for (const v of chunk) decoded[v.vin.toUpperCase()] = null;
+    }
+  }
+  // Merge decoded values back; set decodeWarning flag for fallback vehicles
+  return vehicles.map(v => {
+    const d = decoded[v.vin.toUpperCase()];
+    if (d) return { ...v, make: d.make, model: d.model, year: d.year };
+    return { ...v, decodeWarning: true }; // keep Axcessa column values as-is
+  });
+}
+
 async function runAxcessaImport(vehicles, format, dbId, onProgress) {
-  const results = { created: 0, updated: [], skipped: [], failed: [] };
-  for (let i = 0; i < vehicles.length; i++) {
-    const v     = vehicles[i];
+  // created is now an array (stock #s) so we can display the full list
+  const results = { created: [], updated: [], skipped: [], failed: [], decodeWarnings: [] };
+  // ── Phase 1: Batch VIN decode via NHTSA ────────────────────────────────────
+  const decoded = await decodeVINsBatch(vehicles, onProgress);
+  results.decodeWarnings = decoded.filter(v => v.decodeWarning).map(v => v.stockNo || v.vin);
+  // ── Phase 2: Notion writes ────────────────────────────────────────────────
+  for (let i = 0; i < decoded.length; i++) {
+    const v     = decoded[i];
     const label = v.stockNo || v.vin;
-    onProgress(`${i + 1} / ${vehicles.length}  —  ${label}`);
+    onProgress(`${i + 1} / ${decoded.length}  —  ${label}`);
     try {
       const q        = await notionFetch(`/databases/${dbId}/query`, "POST", { filter: { property: "VIN", rich_text: { equals: v.vin } } });
       const existing = q.results?.[0] || null;
       if (!existing) {
         await notionFetch("/pages", "POST", { parent: { database_id: dbId }, properties: buildImportCreateProps(v, format) });
-        results.created++;
+        results.created.push(label);
       } else {
         const updates = buildImportUpdateProps(v, existing.properties, format);
         if (Object.keys(updates).length > 0) {
@@ -417,7 +463,7 @@ async function runAxcessaImport(vehicles, format, dbId, onProgress) {
       results.failed.push({ label, error: err.message });
     }
     // Pace to stay within Notion's ~3 req/sec rate limit
-    if (i < vehicles.length - 1) await new Promise(r => setTimeout(r, 400));
+    if (i < decoded.length - 1) await new Promise(r => setTimeout(r, 400));
   }
   return results;
 }
@@ -1733,7 +1779,7 @@ function AxcessaImportModal({ file, onClose, dark, notionMode }) {
           )}
           <div style={{display:"flex",gap:"12px",marginBottom:"12px"}}>
             <div style={tile(dark?"#14532d":"#dcfce7","#4ade80")}>
-              <div style={{fontSize:"28px",fontWeight:700}}>{results.created}</div>
+              <div style={{fontSize:"28px",fontWeight:700}}>{results.created.length}</div>
               <div style={{fontSize:"11px",opacity:0.8}}>Created</div>
             </div>
             <div style={tile(dark?"#1e3a5f":"#dbeafe","#60a5fa")}>
@@ -1751,8 +1797,19 @@ function AxcessaImportModal({ file, onClose, dark, notionMode }) {
               </div>
             )}
           </div>
+          <StockList label="Created" items={results.created} color={dark?"#4ade80":"#16a34a"}/>
           <StockList label="Updated" items={results.updated} color={dark?"#60a5fa":"#2563eb"}/>
           <StockList label="No Changes (already up to date)" items={results.skipped} color={sub}/>
+          {results.decodeWarnings?.length > 0 && (
+            <div style={{marginTop:"12px"}}>
+              <div style={{fontSize:"12px",fontWeight:600,color:"#f59e0b",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>⚠ VIN Decode Fallback — used Axcessa values</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>
+                {results.decodeWarnings.map((s,i)=>(
+                  <span key={i} style={{fontSize:"11px",padding:"2px 8px",borderRadius:"12px",background:dark?"#1e293b":"#fefce8",color:"#d97706"}}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
           {results.failed.length > 0 && (
             <div style={{marginTop:"12px"}}>
               <div style={{fontSize:"12px",fontWeight:600,color:sub,marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Errors</div>
