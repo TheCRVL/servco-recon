@@ -360,7 +360,7 @@ function buildImportCreateProps(v, format) {
     "Interior":          rt(v.interior),
     "Title RCVD Toggle": { checkbox: !!v.titleRcvdToggle },
     "Stage":             { select: { name: "fresh" } },
-    "Retail/Whsl":       { select: { name: format } },
+    "R/W":               { select: { name: format === "Wholesale" ? "W" : "R" } },
   };
   if (v.notes.length > 0) props["Notes"] = rtChunked(v.notes.join("\n"));
   return props;
@@ -384,9 +384,9 @@ function buildImportUpdateProps(v, p, format) {
   if (v.titleRcvdToggle && !p["Title RCVD Toggle"]?.checkbox) {
     updates["Title RCVD Toggle"] = { checkbox: true };
   }
-  // Retail/Whsl: fill in if currently empty — existing value always wins
-  if (!p["Retail/Whsl"]?.select?.name) {
-    updates["Retail/Whsl"] = { select: { name: format } };
+  // R/W: fill in if currently empty — existing value always wins
+  if (!p["R/W"]?.select?.name) {
+    updates["R/W"] = { select: { name: format === "Wholesale" ? "W" : "R" } };
   }
   // Notes: intentionally never updated on VIN match
   return updates;
