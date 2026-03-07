@@ -264,10 +264,13 @@ function carToNotion(car) {
     "Svc Done":      dt(car.svcDone),     "Body Shop":   dt(car.bodyShop),
     "Detail":        dt(car.detail),      "Pics":        dt(car.pics),
     "Frontline":     dt(car.frontline),   "Sold Date":   dt(car.soldDate),
-    "Parts Hold":    {checkbox: !!car.partsHold},
-    "Needs Body Work":{checkbox: !!car.needsBodyWork},
-    "Up For Sale":   {checkbox: !!car.upForSale},
-    "No Plates":     {checkbox: !!car.noPlates},
+    "Parts Hold":       {checkbox: !!car.partsHold},
+    "Needs Body Work":  {checkbox: !!car.needsBodyWork},
+    "Up For Sale":      {checkbox: !!car.upForSale},
+    "No Plates":        {checkbox: !!car.noPlates},
+    "Title RCVD Toggle":{checkbox: !!car.titleRcvdToggle},
+    "Titled to SPI":    {checkbox: !!car.titledToSpi},
+    "Interior":         rt(car.interior),
     "Notes":         (()=>{
       const str = JSON.stringify(car.notes||[]);
       const chunks = [];
@@ -846,10 +849,12 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
           <div style={{fontSize:"10px",color:dark?"#64748b":"#94a3b8",fontWeight:700,letterSpacing:"0.08em",marginBottom:"8px"}}>TOGGLES</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
             {[
-              {key:"partsHold",     label:"Parts Hold",      on:{bg:"#1c1a07",border:"#d97706",color:"#fbbf24"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
-              {key:"needsBodyWork", label:"Needs Body Work",  on:{bg:"#0c1a2e",border:"#3b82f6",color:"#60a5fa"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
-              {key:"upForSale",     label:"Online",           on:{bg:"#0d2818",border:"#22c55e",color:"#4ade80"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
-              {key:"noPlates",      label:"No Plates",        on:{bg:"#1a0a2e",border:"#a855f7",color:"#d8b4fe"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
+              {key:"partsHold",       label:"Parts Hold",      on:{bg:"#1c1a07",border:"#d97706",color:"#fbbf24"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
+              {key:"needsBodyWork",   label:"Needs Body Work", on:{bg:"#0c1a2e",border:"#3b82f6",color:"#60a5fa"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
+              {key:"upForSale",       label:"Online",          on:{bg:"#0d2818",border:"#22c55e",color:"#4ade80"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
+              {key:"noPlates",        label:"No Plates",       on:{bg:"#1a0a2e",border:"#a855f7",color:"#d8b4fe"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
+              {key:"titleRcvdToggle", label:"Title RCVD",      on:{bg:"#0a2218",border:"#10b981",color:"#34d399"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
+              {key:"titledToSpi",     label:"Titled to SPI",   on:{bg:"#1a1030",border:"#8b5cf6",color:"#c4b5fd"}, off:{bg:dark?"#1e293b":"#f1f5f9",border:dark?"#334155":"#e2e8f0",color:dark?"#64748b":"#94a3b8"}},
             ].map(({key,label,on,off})=>{
               const active = !!form[key];
               const style  = active ? on : off;
@@ -887,6 +892,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
           <ModalField label="Miles"         fkey="miles"        form={form} set={set} readonly={isViewer}/>
           <ModalField label="Color"         fkey="color"        form={form} set={set} readonly={isViewer}/>
           <ModalField label="License Plate" fkey="licensePlate" form={form} set={set} readonly={isViewer}/>
+          <ModalField label="Interior"      fkey="interior"     form={form} set={set} readonly={isViewer}/>
           <ModalField label="ACV"           fkey="acv"          form={form} set={set} readonly={isViewer}/>
           <ModalSelect label="Keys"        fkey="keys"       options={[{v:"1",l:"1 Key"},{v:"2",l:"2 Keys"}]} form={form} set={set} readonly={isViewer}/>
           <ModalSelect label="Retail/Whsl" fkey="rw"         options={[{v:"R",l:"Retail"},{v:"W",l:"Wholesale"}]} form={form} set={set} readonly={isViewer}/>
@@ -978,7 +984,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
 
 // ─── ADD CAR MODAL ────────────────────────────────────────────────────────────
 function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
-  const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",color:"",licensePlate:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:"",partsHold:false,needsBodyWork:false,upForSale:false,noPlates:false};
+  const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",color:"",licensePlate:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:"",partsHold:false,needsBodyWork:false,upForSale:false,noPlates:false,titleRcvdToggle:false,titledToSpi:false,interior:""};
   const [form,setForm]           = useState(blank);
   const [decoding,setDecoding]   = useState(false);
   const [flashFields,setFlashFields] = useState(new Set());
@@ -1763,7 +1769,7 @@ export default function ReconDashboard() {
         const fresh = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
           const rawStage=p["Stage"]?.select?.name||"fresh";
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),titleRcvdToggle:chk("Title RCVD Toggle"),titledToSpi:chk("Titled to SPI"),interior:txt("Interior"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -1828,7 +1834,7 @@ export default function ReconDashboard() {
         const mapped = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
           const rawStage=p["Stage"]?.select?.name||"fresh";
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),titleRcvdToggle:chk("Title RCVD Toggle"),titledToSpi:chk("Titled to SPI"),interior:txt("Interior"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -1870,9 +1876,9 @@ export default function ReconDashboard() {
     }
     // Log notable field changes (non-note, non-meta fields)
     if (prev) {
-      const TRACK = ["stockNo","make","model","year","vin","color","mileage","payoffBank","titleState",
+      const TRACK = ["stockNo","make","model","year","vin","color","interior","licensePlate","mileage","payoffBank","titleState",
                      "titleRcvd","sentDMV","spiTitle","sentToAuction","partsHold","needsBodyWork",
-                     "upForSale","noPlates","oneKey"];
+                     "upForSale","noPlates","oneKey","titleRcvdToggle","titledToSpi"];
       const changed = TRACK.filter(k=>String(prev[k]||"")!==String(updated[k]||""));
       if (changed.length) {
         const summary = changed.map(k=>`${k}: "${prev[k]||""}" → "${updated[k]||""}"`).join(", ");
