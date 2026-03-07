@@ -2043,7 +2043,7 @@ export default function ReconDashboard() {
         onMouseEnter={e=>e.currentTarget.style.color="#1d4ed8"}
         onMouseLeave={e=>e.currentTarget.style.color="#334155"}
       >
-        V 1 . 2
+        V 1 . 4  · Beta
       </a>
       <div style={{
         fontSize:"11px",
