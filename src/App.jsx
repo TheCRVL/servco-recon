@@ -1519,13 +1519,79 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
 
 
 // ─── SETTINGS PANEL ──────────────────────────────────────────────────────────
-function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose }) {
+function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentRole, currentUser }) {
   const bg     = dark ? "#0f172a" : "#ffffff";
   const border = dark ? "#1e293b" : "#e2e8f0";
   const text   = dark ? "#e2e8f0" : "#1e293b";
   const sub    = dark ? "#64748b" : "#94a3b8";
+
+  // ── Admin backup state ───────────────────────────────────────────────────
+  const isAdmin = currentRole === "admin";
+  const [lastBackup,     setLastBackup]     = useState(null);
+  const [backupLoading,  setBackupLoading]  = useState(false);
+  const [backupMsg,      setBackupMsg]      = useState("");
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreMsg,     setRestoreMsg]     = useState("");
+  const [confirmRestore, setConfirmRestore] = useState(false);
+
+  const fmtHST = iso =>
+    iso
+      ? new Date(iso).toLocaleString("en-US", {
+          timeZone: "Pacific/Honolulu",
+          month: "short", day: "numeric", year: "numeric",
+          hour: "numeric", minute: "2-digit", hour12: true,
+        }) + " HST"
+      : "Never";
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/backup", { headers: { Authorization: `Bearer ${NOTION_TOKEN}` } })
+      .then(r => r.json())
+      .then(d => setLastBackup(d.lastBackup || null))
+      .catch(() => {});
+  }, [isAdmin]);
+
+  const runBackup = async () => {
+    setBackupLoading(true); setBackupMsg("");
+    try {
+      const r = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${NOTION_TOKEN}` },
+      });
+      const d = await r.json();
+      if (d.success) {
+        setLastBackup(d.timestamp);
+        setBackupMsg(`✓ Synced ${d.synced} record${d.synced !== 1 ? "s" : ""}${d.deleted ? `, archived ${d.deleted}` : ""}`);
+      } else {
+        setBackupMsg(`❌ ${d.error || "Backup failed"}`);
+      }
+    } catch (e) {
+      setBackupMsg(`❌ ${e.message}`);
+    }
+    setBackupLoading(false);
+  };
+
+  const runRestore = async () => {
+    setConfirmRestore(false); setRestoreLoading(true); setRestoreMsg("");
+    try {
+      const r = await fetch("/api/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${NOTION_TOKEN}` },
+      });
+      const d = await r.json();
+      if (d.success) {
+        setRestoreMsg(`✓ Restored ${d.restored} record${d.restored !== 1 ? "s" : ""}`);
+      } else {
+        setRestoreMsg(`❌ ${d.error || "Restore failed"}`);
+      }
+    } catch (e) {
+      setRestoreMsg(`❌ ${e.message}`);
+    }
+    setRestoreLoading(false);
+  };
+
   return (
-    <div style={{position:"fixed",bottom:"72px",right:"20px",zIndex:9999,background:bg,border:`1px solid ${border}`,borderRadius:"14px",padding:"20px",width:"260px",boxShadow:dark?"0 8px 40px rgba(0,0,0,0.6)":"0 8px 40px rgba(0,0,0,0.15)",fontFamily:"'DM Sans',sans-serif"}}>
+    <div style={{position:"fixed",bottom:"72px",right:"20px",zIndex:9999,background:bg,border:`1px solid ${border}`,borderRadius:"14px",padding:"20px",width:"280px",boxShadow:dark?"0 8px 40px rgba(0,0,0,0.6)":"0 8px 40px rgba(0,0,0,0.15)",fontFamily:"'DM Sans',sans-serif"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
         <span style={{fontSize:"13px",fontWeight:800,color:text,letterSpacing:"0.04em",textTransform:"uppercase"}}>⚙ Settings</span>
         <button onClick={onClose} style={{background:"none",border:"none",color:sub,cursor:"pointer",fontSize:"16px",padding:"0",lineHeight:1}}>✕</button>
@@ -1549,6 +1615,55 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose }) {
           ))}
         </div>
       </div>
+      {/* Admin Backup Controls — completely absent from DOM for non-admin */}
+      {isAdmin && (
+        <>
+          <div style={{borderTop:`1px solid ${border}`,margin:"16px 0"}}/>
+          <div style={{fontSize:"11px",fontWeight:800,color:sub,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:"10px"}}>Database Backup</div>
+          <div style={{fontSize:"11px",color:sub,marginBottom:"10px"}}>
+            Last backup:<br/>
+            <span style={{color:text,fontWeight:600}}>{fmtHST(lastBackup)}</span>
+          </div>
+          {/* Run Backup Now */}
+          <button
+            onClick={runBackup}
+            disabled={backupLoading}
+            style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0",dark),width:"100%",marginBottom:"6px",fontSize:"12px",opacity:backupLoading?0.6:1,color:dark?"#e2e8f0":"#475569"}}
+          >
+            {backupLoading ? "Backing up…" : "🗄 Run Backup Now"}
+          </button>
+          {backupMsg && (
+            <div style={{fontSize:"11px",color:backupMsg.startsWith("✓")?(dark?"#4ade80":"#15803d"):(dark?"#f87171":"#dc2626"),marginBottom:"8px",fontWeight:600}}>
+              {backupMsg}
+            </div>
+          )}
+          {/* Restore Latest Backup */}
+          {!confirmRestore ? (
+            <button
+              onClick={()=>setConfirmRestore(true)}
+              disabled={restoreLoading}
+              style={{...btn(dark?"#7f1d1d":"#fef2f2",dark?"#dc2626":"#dc2626",dark),width:"100%",fontSize:"12px",opacity:restoreLoading?0.6:1}}
+            >
+              {restoreLoading ? "Restoring…" : "⏪ Restore Latest Backup"}
+            </button>
+          ) : (
+            <div style={{background:dark?"#3f0e0e":"#fef2f2",border:`1px solid ${dark?"#dc2626":"#fca5a5"}`,borderRadius:"8px",padding:"10px",marginTop:"2px"}}>
+              <div style={{fontSize:"11px",color:dark?"#fca5a5":"#b91c1c",fontWeight:600,marginBottom:"8px",lineHeight:"1.4"}}>
+                This will overwrite all current live records with the most recent backup snapshot. This cannot be undone. Continue?
+              </div>
+              <div style={{display:"flex",gap:"6px"}}>
+                <button onClick={runRestore} style={{...btn(dark?"#7f1d1d":"#dc2626",dark?"#dc2626":"#b91c1c",dark),flex:1,fontSize:"11px",padding:"6px"}}>Yes, Restore</button>
+                <button onClick={()=>setConfirmRestore(false)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0",dark),flex:1,fontSize:"11px",padding:"6px",color:dark?"#94a3b8":"#475569"}}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {restoreMsg && (
+            <div style={{fontSize:"11px",color:restoreMsg.startsWith("✓")?(dark?"#4ade80":"#15803d"):(dark?"#f87171":"#dc2626"),marginTop:"8px",fontWeight:600}}>
+              {restoreMsg}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -2483,7 +2598,7 @@ export default function ReconDashboard() {
 
       {selected&&<CarModal car={selected} onClose={()=>setSelected(null)} onSave={handleSave} onDelete={handleDelete} onSwipeAdvance={handleSwipeAdvance} dark={dark} currentRole={currentRole||"viewer"} currentUser={currentUser||""}/>}
       {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))} dark={dark}/>}
-      {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} onClose={()=>setShowSettings(false)}/>}
+      {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} onClose={()=>setShowSettings(false)} currentRole={currentRole} currentUser={currentUser}/>}
       {showUserMgmt&&<UserManagementModal onClose={()=>setShowUserMgmt(false)} dark={dark}/>}
     </div>
   );
