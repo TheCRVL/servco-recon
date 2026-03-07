@@ -409,9 +409,8 @@ async function decodeVINsBatch(vehicles, onProgress) {
       const make  = get("Make");
       const model = get("Model");
       const year  = get("Model Year");
-      const body  = get("Body Class");
       decoded[v.vin.toUpperCase()] = (make && model && year)
-        ? { make, model: body ? `${model} (${body})` : model, year }
+        ? { make, model, year }
         : null;
     } catch (_) {
       decoded[v.vin.toUpperCase()] = null;
