@@ -1482,7 +1482,7 @@ function useDragScroll() {
 
 
 // ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
-function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false, readonly=false, isFiltering=false }) {
+function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onToggleProp, dark=false, readonly=false, isFiltering=false, onTogglePrint, printQueueIds=new Set() }) {
   const soldCars     = cars.filter(c=>c.stage==="sold");
   const pipelineCars = cars.filter(c=>c.stage!=="sold");
   // When filtering/searching, collapse stages that have no matching vehicles
@@ -1687,6 +1687,19 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onTo
               </button>
             );
           })}
+          {/* Print queue */}
+          {onTogglePrint && <>
+            <div style={{height:"1px",background:dark?"#1e293b":"#e2e8f0",margin:"4px 0"}}/>
+            {(()=>{ const inQueue = printQueueIds.has(ctxCar.id); return (
+              <button onClick={()=>{ onTogglePrint(ctxCar); closeCtx(); }}
+                style={{display:"flex",alignItems:"center",gap:"8px",width:"100%",padding:"8px 10px",background:inQueue?(dark?"#1a2e1a":"#dcfce7"):"none",border:"none",borderRadius:"6px",cursor:"pointer",fontSize:"12px",fontWeight:700,color:inQueue?"#15803d":(dark?"#94a3b8":"#64748b"),textAlign:"left"}}
+                onMouseEnter={e=>e.currentTarget.style.background=inQueue?(dark?"#1a2e1a":"#dcfce7"):(dark?"#1e293b":"#f8fafc")}
+                onMouseLeave={e=>e.currentTarget.style.background=inQueue?(dark?"#1a2e1a":"#dcfce7"):"none"}>
+                <span>{inQueue?"✓":"🖨"}</span>
+                <span>{inQueue?"Remove from Print Queue":"Add to Print Queue"}</span>
+              </button>
+            ); })()}
+          </>}
         </div>
       )}
     </div>
@@ -3096,7 +3109,7 @@ export default function ReconDashboard() {
         {loading
           ? <div style={{textAlign:"center",padding:"60px",color:dark?"#334155":"#94a3b8",fontSize:"14px"}}>Loading from Notion…</div>
           : view==="kanban"
-            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"} isFiltering={isFiltering}/>
+            ? <KanbanView cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} onStageChange={handleStageChange} onMarkSold={handleMarkSold} onToggleProp={handleToggleProp} dark={dark} readonly={currentRole==="viewer"} isFiltering={isFiltering} onTogglePrint={togglePrintQueue} printQueueIds={printQueueIds}/>
             : <TableView  cars={filtered} onCarClick={setSelected} dupVINs={dupVINs} dark={dark}/>
         }
       </div>
