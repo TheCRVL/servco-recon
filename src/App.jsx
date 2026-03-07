@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 // ─── NOTION CONFIG ────────────────────────────────────────────────────────────
 // Credentials live in Vercel environment variables — never hardcoded
@@ -11,15 +11,16 @@ const NOTION_USERS_DB_ID = "31c688da23fd80ec8c50fe7bb9ce447f";
 // ─── PIPELINE STAGES ─────────────────────────────────────────────────────────
 const STAGES = [
   { id: "fresh",       label: "Fresh",        color: "#dbeafe", accent: "#1d4ed8", dark: "#1e3a5f", darkAccent: "#38bdf8" },
-  { id: "title_work",  label: "Title Work",   color: "#ede9fe", accent: "#6d28d9", dark: "#6d28d9", darkAccent: "#a78bfa" },
   { id: "service",     label: "In Service",   color: "#dbeafe", accent: "#1d4ed8", dark: "#1e40af", darkAccent: "#60a5fa" },
-  { id: "body_shop",   label: "Body Shop",    color: "#cffafe", accent: "#0e7490", dark: "#0e7490", darkAccent: "#22d3ee" },
   { id: "detail",      label: "Detail",       color: "#d1fae5", accent: "#065f46", dark: "#065f46", darkAccent: "#34d399" },
   { id: "photos",      label: "Photos",       color: "#ecfdf5", accent: "#059669", dark: "#0f4c35", darkAccent: "#6ee7b7" },
   { id: "frontline",   label: "Frontline ✓",  color: "#dcfce7", accent: "#15803d", dark: "#14532d", darkAccent: "#4ade80" },
   { id: "sold",        label: "Sold 🏁",       color: "#ede9fe", accent: "#6d28d9", dark: "#1e1e2e", darkAccent: "#818cf8" },
 ];
 const PIPELINE_STAGES = STAGES.filter(s => s.id !== "sold");
+const SNAKE_MAX = 25; // max cards per sub-column in kanban snake layout
+// Legacy stage migration — vehicles loaded from Notion with old stage IDs are remapped
+const STAGE_MIGRATE = { reg_safety: "fresh", title_work: "fresh", body_shop: "service" };
 
 // ─── MOBILE HOOK ──────────────────────────────────────────────────────────────
 function useIsMobile() {
@@ -33,11 +34,9 @@ function useIsMobile() {
 }
 
 // ─── SWIPE CONFIG ─────────────────────────────────────────────────────────────
-const SWIPE_ORDER = ["fresh","title_work","service","body_shop","detail","photos","frontline","sold"];
+const SWIPE_ORDER = ["fresh","service","detail","photos","frontline","sold"];
 const SWIPE_CFG   = {
-  title_work:{bg:"#3b0764",text:"#a78bfa",icon:"📋"},
   service:   {bg:"#1e3a8a",text:"#60a5fa",icon:"🔧"},
-  body_shop: {bg:"#164e63",text:"#22d3ee",icon:"🛠"},
   detail:    {bg:"#064e3b",text:"#34d399",icon:"✨"},
   photos:    {bg:"#022c22",text:"#6ee7b7",icon:"📸"},
   frontline: {bg:"#14532d",text:"#4ade80",icon:"✅"},
@@ -58,9 +57,9 @@ function getSwipeConfirmText(fromStageId) {
 const MOCK = [
   { id:"1", stockNo:"GVA05952", vin:"1FTBR1C80RKA05952", year:"2024", make:"Ford",   model:"Transit",      keys:"2", miles:"8,923",  acv:"$24,500", rw:"R", titleState:"HI", payoffBank:"Ally", acquiredDate:"2026-01-28", payoffSent:"2026-02-01", titleRcvd:"2026-02-08", sentDMV:"2026-02-09", spiTitle:"2026-02-18", regExp:"2026-12-01", scExp:"2026-11-15", inSvc:"2026-02-10", svcDone:"2026-02-13", bodyShop:"",         detail:"2026-02-14", pics:"2026-02-15", frontline:"2026-02-16", soldDate:"", stage:"frontline",  notes:[{text:"Detail and photos done. Frontline ready.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-28",service:"2026-02-10",detail:"2026-02-14",photos:"2026-02-15",frontline:"2026-02-16"} },
   { id:"2", stockNo:"WKA305P",  vin:"1N6BA1F42RN305002", year:"2016", make:"Nissan", model:"NV Passenger", keys:"1", miles:"83,422", acv:"$8,200",  rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-03-10", scExp:"2026-02-10", inSvc:"2026-02-20", svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"service",    notes:[{text:"Going in next available on heavy duty rack.",author:"Conrad",date:"2026-02-28"},{text:"HVAC heaterhose ordered from dealer.",author:"Lyie B",date:"2025-12-15"}], stageTimes:{fresh:"2026-01-20",service:"2026-02-20"} },
-  { id:"3", stockNo:"SFB53904", vin:"1C6JJTBG5NL153904", year:"2022", make:"Jeep",   model:"Gladiator",    keys:"2", miles:"62,088", acv:"$31,000", rw:"R", titleState:"ML", payoffBank:"Ally", acquiredDate:"2026-02-10", payoffSent:"2026-02-12", titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-01-15", scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"title_work", notes:[{text:"Mainland bank — Ally. Payoff check mailed 2/12.",author:"Michelle P",date:"2026-02-12"}], stageTimes:{fresh:"2026-02-10",title_work:"2026-02-10"} },
-  { id:"4", stockNo:"TYA22101", vin:"2T1BURHE0NC022101", year:"2023", make:"Toyota", model:"Corolla",      keys:"1", miles:"24,500", acv:"$18,750", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-15", payoffSent:"",          titleRcvd:"2026-02-22", sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"2026-02-01", inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"title_work", notes:[{text:"SC expired — needs safety before going to service.",author:"Kapono",date:"2026-02-25"}], stageTimes:{fresh:"2026-02-15",title_work:"2026-02-22"} },
-  { id:"5", stockNo:"HNA88231", vin:"5FNYF6H09NB088231", year:"2021", make:"Honda",  model:"Pilot",        keys:"2", miles:"41,200", acv:"$22,000", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"2026-02-26", svcDone:"2026-03-01", bodyShop:"2026-03-01",detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"body_shop",  notes:[{text:"Minor bumper repair. Sent to sublet body shop.",author:"Tony",date:"2026-03-01"}], stageTimes:{fresh:"2026-02-20",service:"2026-02-26",body_shop:"2026-03-01"} },
+  { id:"3", stockNo:"SFB53904", vin:"1C6JJTBG5NL153904", year:"2022", make:"Jeep",   model:"Gladiator",    keys:"2", miles:"62,088", acv:"$31,000", rw:"R", titleState:"ML", payoffBank:"Ally", acquiredDate:"2026-02-10", payoffSent:"2026-02-12", titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"2026-01-15", scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"fresh",      notes:[{text:"Mainland bank — Ally. Payoff check mailed 2/12.",author:"Michelle P",date:"2026-02-12"}], stageTimes:{fresh:"2026-02-10"} },
+  { id:"4", stockNo:"TYA22101", vin:"2T1BURHE0NC022101", year:"2023", make:"Toyota", model:"Corolla",      keys:"1", miles:"24,500", acv:"$18,750", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-15", payoffSent:"",          titleRcvd:"2026-02-22", sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"2026-02-01", inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"fresh",      notes:[{text:"SC expired — needs safety before going to service.",author:"Kapono",date:"2026-02-25"}], stageTimes:{fresh:"2026-02-15"} },
+  { id:"5", stockNo:"HNA88231", vin:"5FNYF6H09NB088231", year:"2021", make:"Honda",  model:"Pilot",        keys:"2", miles:"41,200", acv:"$22,000", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-02-20", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"2026-02-26", svcDone:"2026-03-01", bodyShop:"2026-03-01",detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"service",    notes:[{text:"Minor bumper repair. Sent to sublet body shop.",author:"Tony",date:"2026-03-01"}], stageTimes:{fresh:"2026-02-20",service:"2026-02-26"} },
   { id:"6", stockNo:"MZA91045", vin:"JM3KFBCM1L0391045", year:"2020", make:"Mazda",  model:"CX-5",         keys:"1", miles:"55,100", acv:"$14,200", rw:"W", titleState:"HI", payoffBank:"",     acquiredDate:"2026-03-01", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"",           soldDate:"", stage:"fresh",      notes:[{text:"Just acquired. Decide R or W by tomorrow.",author:"Kapono",date:"2026-03-01"}], stageTimes:{fresh:"2026-03-01"} },
   { id:"7", stockNo:"KIA77432",  vin:"5XXG14J27PG077432", year:"2023", make:"Kia",    model:"Sportage",     keys:"2", miles:"19,800", acv:"$26,500", rw:"R", titleState:"HI", payoffBank:"",     acquiredDate:"2026-01-10", payoffSent:"",          titleRcvd:"",          sentDMV:"",          spiTitle:"",          regExp:"",           scExp:"",           inSvc:"",           svcDone:"",          bodyShop:"",         detail:"",           pics:"",          frontline:"2026-02-01", soldDate:"2026-02-15", stage:"sold",       notes:[{text:"Sold 2/15. Deal funded.",author:"Kapono",date:"2026-02-15"}], stageTimes:{fresh:"2026-01-10",frontline:"2026-02-01",sold:"2026-02-15"} },
 ];
@@ -502,7 +501,6 @@ function stageTimeBadge(days, dark=false) {
 // Maps each stage to its actual date field. Stages without a date field use acquiredDate.
 const STAGE_DATE_FIELD = {
   service:    "inSvc",
-  body_shop:  "bodyShop",
   detail:     "detail",
   photos:     "pics",
   frontline:  "frontline",
@@ -511,12 +509,10 @@ const STAGE_DATE_FIELD = {
 function initStageTimes(car) {
   const t = {};
   const fill = (stage, date) => { if (!t[stage] && date) t[stage] = date; };
-  // fresh / title_work have no dedicated date field — use acquiredDate
-  fill("fresh",      car.acquiredDate);
-  fill("title_work", car.acquiredDate);
+  // fresh has no dedicated date field — use acquiredDate
+  fill("fresh",     car.acquiredDate);
   // All other stages: ONLY use their actual date field — never fall back to acquiredDate
   fill("service",   car.inSvc);
-  fill("body_shop", car.bodyShop);
   fill("detail",    car.detail);
   fill("photos",    car.pics);
   fill("frontline", car.frontline);
@@ -909,14 +905,11 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
   const autoStage = (key, val, currentForm) => {
     const f = {...currentForm, [key]: val};
     // Only auto-advance — never auto-retreat from a later stage
-    const stageOrder = ["fresh","title_work","service","body_shop","detail","photos","frontline","sold"];
+    const stageOrder = ["fresh","service","detail","photos","frontline","sold"];
     const currentIdx = stageOrder.indexOf(f.stage);
     let newStage = f.stage;
 
-    if (key === "sentDMV" && val)    newStage = "title_work";
-    if (key === "payoffSent" && val) newStage = "title_work";
     if (key === "inSvc" && val)     newStage = "service";
-    if (key === "bodyShop" && val)  newStage = "body_shop";
     if (key === "detail" && val)    newStage = "detail";
     if (key === "pics" && val)      newStage = "photos";
     if (key === "frontline" && val) newStage = "frontline";
@@ -1408,13 +1401,12 @@ function SearchResultsView({ cars, onCarClick, dupVINs, dark=false }) {
       </div>
       <div style={{display:"flex",flexWrap:"wrap",gap:"8px"}}>
         {cars.map(car=>{
-          const stage = STAGES.find(s=>s.id===car.stage)||STAGES[0];
+          const stage = stageOf(car.stage);
           return (
             <div key={car.id} style={{width:"190px",flexShrink:0}}>
               <KanbanCard car={car} stage={stage} onCarClick={onCarClick}
                 isDupVIN={!!(car.vin&&dupVINs.has(car.vin.toUpperCase()))}
-                onDragStart={()=>{}} isDragging={false} isGhost={false} dark={dark}
-                onContextMenu={null}/>
+                onDragStart={()=>{}} isDragging={false} isGhost={false} dark={dark}/>
             </div>
           );
         })}
@@ -1521,8 +1513,7 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onTo
         {PIPELINE_STAGES.map(stage=>{
           const col    = pipelineCars.filter(c=>c.stage===stage.id);
           const isOver = overStage===stage.id;
-          // ── Snake layout: max 25 per sub-column, even-indexed cols reversed ──
-          const SNAKE_MAX = 25;
+          // ── Snake layout: max SNAKE_MAX per sub-column, even-indexed cols reversed ──
           const subCols = [];
           for (let i = 0; i < col.length; i += SNAKE_MAX) {
             const chunk = col.slice(i, i + SNAKE_MAX);
@@ -1553,8 +1544,8 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onTo
                 {subCols.map((chunk, ci)=>(
                   <div key={ci} style={{
                     width:"190px",flexShrink:0,display:"flex",flexDirection:"column",gap:"7px",
-                    minHeight:"60px",padding: isOver&&ci===0 ? "4px" : "0",
-                    background: isOver&&ci===0 ? stage.color+"22" : "transparent",
+                    minHeight:"60px",padding: isOver ? "4px" : "0",
+                    background: isOver ? stage.color+"22" : "transparent",
                     transition:"all 0.15s",
                   }}>
                     {chunk.map(car=>(
@@ -1571,7 +1562,7 @@ function KanbanView({ cars, onCarClick, dupVINs, onStageChange, onMarkSold, onTo
                           setCtxMenu({visible:true,x:vp.x,y:vp.y,carId:c.id});
                         }}/>
                     ))}
-                    {ci===0&&isOver&&draggingId&&<KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false} dark={dark}/>}
+                    {ci===subCols.length-1&&isOver&&draggingId&&<KanbanCard isGhost={true} car={{}} stage={stage} onCarClick={()=>{}} isDupVIN={false} onDragStart={()=>{}} isDragging={false} dark={dark}/>}
                     {ci===0&&col.length===0&&!isOver&&<div style={{textAlign:"center",color:dark?"#1e293b":"#cbd5e1",fontSize:"12px",padding:"20px 0"}}>—</div>}
                   </div>
                 ))}
@@ -2222,8 +2213,8 @@ export default function ReconDashboard() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [axcessaFile,  setAxcessaFile]    = useState(null);
   const axcessaFileRef = useRef(null);
+  const mobileMenuRef  = useRef(null);
   const isDesktop = useIsDesktop();
-  const isMobile  = !isDesktop;
   const [swipeUndo, setSwipeUndo]       = useState(null); // {msg,carId,fromStage,nextStageId,clearedFields,timerId}
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
@@ -2255,7 +2246,7 @@ export default function ReconDashboard() {
         const fresh = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
           const rawStage=p["Stage"]?.select?.name||"fresh";
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),titleRcvdToggle:chk("Title RCVD Toggle"),titledToSpi:chk("Titled to SPI"),interior:txt("Interior"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:STAGE_MIGRATE[rawStage]||rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),titleRcvdToggle:chk("Title RCVD Toggle"),titledToSpi:chk("Titled to SPI"),interior:txt("Interior"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -2279,6 +2270,21 @@ export default function ReconDashboard() {
     const id = setInterval(silentPoll, 30000);
     return () => clearInterval(id);
   }, [notionMode, silentPoll]);
+
+  // Close mobile menu when clicking/tapping outside it
+  useEffect(() => {
+    if (!showMobileMenu) return;
+    const handler = e => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target))
+        setShowMobileMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [showMobileMenu]);
 
   // Shift+V → open Add Vehicle modal
   useEffect(() => {
@@ -2320,7 +2326,7 @@ export default function ReconDashboard() {
         const mapped = allResults.map(page=>{
           const p=page.properties, txt=k=>p[k]?.rich_text?.[0]?.plain_text||p[k]?.title?.[0]?.plain_text||"", dt=k=>p[k]?.date?.start||"", chk=k=>p[k]?.checkbox||false, exp=k=>{const d=p[k]?.date?.start; if(!d)return""; const[y,m]=d.split('-'); return `${m}/${y.slice(2)}`;}, parseNotes=k=>{try{return JSON.parse((p[k]?.rich_text||[]).map(r=>r.plain_text).join("")||"[]");}catch(_){return[];}};
           const rawStage=p["Stage"]?.select?.name||"fresh";
-          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:rawStage==="reg_safety"?"fresh":rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),titleRcvdToggle:chk("Title RCVD Toggle"),titledToSpi:chk("Titled to SPI"),interior:txt("Interior"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
+          const mc={id:page.id,stockNo:txt("Stock No"),vin:txt("VIN"),year:txt("Year"),make:txt("Make"),model:txt("Model"),keys:p["Keys"]?.select?.name||"1",miles:txt("Miles"),acv:txt("ACV"),rw:p["R/W"]?.select?.name||"R",titleState:p["Title State"]?.select?.name||"HI",payoffBank:txt("Payoff Bank"),stage:STAGE_MIGRATE[rawStage]||rawStage,acquiredDate:dt("Acquired Date"),payoffSent:dt("Payoff Sent"),titleRcvd:dt("Title RCVD"),sentDMV:dt("Sent DMV"),spiTitle:dt("SPI Title RCVD"),regExp:exp("Reg Exp"),scExp:exp("SC Exp"),inSvc:dt("In Svc"),svcDone:dt("Svc Done"),bodyShop:dt("Body Shop"),detail:dt("Detail"),pics:dt("Pics"),frontline:dt("Frontline"),soldDate:dt("Sold Date"),partsHold:chk("Parts Hold"),needsBodyWork:chk("Needs Body Work"),upForSale:chk("Up For Sale"),noPlates:chk("No Plates"),titleRcvdToggle:chk("Title RCVD Toggle"),titledToSpi:chk("Titled to SPI"),interior:txt("Interior"),licensePlate:txt("License Plate"),color:txt("Color"),notes:parseNotes("Notes")};
           mc.stageTimes=initStageTimes(mc);
           return mc;
         });
@@ -2545,12 +2551,12 @@ export default function ReconDashboard() {
     setSwipeUndo(null);
   };
 
-  const activeCars = cars.filter(c=>{
+  const activeCars = useMemo(() => cars.filter(c=>{
     if(c.stage!=="sold") return true;
     const d = soldDaysAgo(c); return d===null||d<10;
-  });
-  const dupVINs = getDupVINs(activeCars);
-  const filtered = activeCars.filter(c=>{
+  }), [cars]);
+  const dupVINs = useMemo(() => getDupVINs(activeCars), [activeCars]);
+  const filtered = useMemo(() => activeCars.filter(c=>{
     const q=search.toLowerCase();
     if (q && ![c.stockNo,c.make,c.model,c.vin].some(v=>(v||"").toLowerCase().includes(q))) return false;
     if (stageFilter!=="all" && c.stage!==stageFilter) return false;
@@ -2562,7 +2568,7 @@ export default function ReconDashboard() {
       if (def && !def.test(c)) return false;
     }
     return true;
-  });
+  }), [activeCars, search, stageFilter, rwFilter, titleStateFilter, hasPayoffFilter, tagFilters]);
   const activePanelFilters = tagFilters.length + (titleStateFilter!=="all"?1:0) + (hasPayoffFilter?1:0);
   const clearPanelFilters = () => { setTagFilters([]); setTitleStateFilter("all"); setHasPayoffFilter(false); };
 
@@ -2806,7 +2812,7 @@ export default function ReconDashboard() {
           <span className="nav-title" style={{fontSize:"12px",color:dark?"#475569":"#64748b",fontFamily:"'DM Sans',sans-serif"}}>Recon Pipeline</span>
         </div>
 
-        {isMobile ? (
+        {!isDesktop ? (
           /* ── MOBILE NAV ──────────────────────────────────── */
           <div style={{display:"flex",gap:"6px",alignItems:"center",position:"relative"}}>
             {!notionMode&&(
@@ -2819,8 +2825,7 @@ export default function ReconDashboard() {
             <button onClick={()=>setShowMobileMenu(m=>!m)}
               style={{...btn(showMobileMenu?(dark?"#1e3a5f":"#1e40af"):(dark?"#1e293b":"#f1f5f9"),showMobileMenu?(dark?"#3b82f6":"#3b82f6"):(dark?"#334155":"#e2e8f0")),fontSize:"16px",padding:"4px 10px",color:showMobileMenu?"#fff":(dark?"#94a3b8":"#64748b"),lineHeight:1}}>⋮</button>
             {showMobileMenu&&(
-              <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,zIndex:500,background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#334155":"#e2e8f0"}`,borderRadius:"10px",boxShadow:"0 8px 24px rgba(0,0,0,0.35)",minWidth:"160px",padding:"6px",display:"flex",flexDirection:"column",gap:"2px"}}
-                onMouseLeave={()=>setShowMobileMenu(false)}>
+              <div ref={mobileMenuRef} style={{position:"absolute",top:"calc(100% + 8px)",right:0,zIndex:500,background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#334155":"#e2e8f0"}`,borderRadius:"10px",boxShadow:"0 8px 24px rgba(0,0,0,0.35)",minWidth:"160px",padding:"6px",display:"flex",flexDirection:"column",gap:"2px"}}>
                 <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();setShowMobileMenu(false);}}
                   style={{...mobileMenuItem(dark),color:notionMode?"#60a5fa":(dark?"#94a3b8":"#64748b")}}>
                   {notionMode?"🔗 Go Offline":"🔗 Connect Notion"}
@@ -2880,10 +2885,12 @@ export default function ReconDashboard() {
         <div className="controls-row" style={{display:"flex",gap:"8px",marginBottom:"8px",flexWrap:"wrap",alignItems:"center"}}>
           <input placeholder="Search stock #, VIN, make, model…" value={search} onChange={e=>setSearch(e.target.value)}
             style={{...input({width:"240px"},dark),fontFamily:"'DM Sans',sans-serif"}}/>
-          <select value={stageFilter} onChange={e=>setStageFilter(e.target.value)} style={input({width:"150px"},dark)}>
-            <option value="all">All Stages</option>
-            {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
-          </select>
+          {isDesktop && (
+            <select value={stageFilter} onChange={e=>setStageFilter(e.target.value)} style={input({width:"150px"},dark)}>
+              <option value="all">All Stages</option>
+              {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+          )}
           <div className="rw-btns" style={{display:"flex",gap:"4px"}}>
             {[["all","All"],["R","Retail"],["W","Wholesale"]].map(([val,label])=>(
               <button key={val} onClick={()=>setRwFilter(val)} style={{...btn(rwFilter===val?"#1e40af":"#1e293b",rwFilter===val?"#3b82f6":"#334155",dark),fontSize:"11px",padding:"5px 10px"}}>{label}</button>
@@ -2910,6 +2917,27 @@ export default function ReconDashboard() {
             ))}
           </div>
         </div>
+
+        {/* ── MOBILE STAGE FILTER PILLS ────────────────────────────────────── */}
+        {!isDesktop && (
+          <div style={{display:"flex",gap:"6px",overflowX:"auto",paddingBottom:"6px",marginBottom:"8px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
+            {[{id:"all",label:"All Stages",accent:"#3b82f6",color:"#1e3a5f"},...STAGES].map(s=>{
+              const active = stageFilter === s.id;
+              const st = s.id !== "all" ? stageOf(s.id) : null;
+              return (
+                <button key={s.id} onClick={()=>setStageFilter(s.id)} style={{
+                  flexShrink:0, padding:"5px 14px", borderRadius:"20px",
+                  fontSize:"11px", fontWeight:700, cursor:"pointer",
+                  whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif",
+                  border:`1px solid ${active?(st?st.accent:s.accent):(dark?"#334155":"#e2e8f0")}`,
+                  background: active ? (st?st.color:s.color) : (dark?"#1e293b":"#f1f5f9"),
+                  color: active ? (st?st.accent:s.accent) : (dark?"#94a3b8":"#64748b"),
+                  transition:"all 0.15s",
+                }}>{s.label}</button>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── FILTER PANEL ─────────────────────────────────────────────────── */}
         {showFilters&&(
