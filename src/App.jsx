@@ -1633,7 +1633,6 @@ export default function ReconDashboard() {
   const [loading, setLoading]         = useState(false);
   const [confetti, setConfetti]       = useState(false);
   const [splash, setSplash]           = useState(true);
-  const [loginPhase, setLoginPhase]     = useState(1);       // 1=login form, 2=data source
   const [loginPw, setLoginPw]           = useState("");
   const [loginError, setLoginError]     = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -1934,9 +1933,12 @@ export default function ReconDashboard() {
         const role = match.properties["Role"]?.select?.name || "viewer";
         setCurrentUser(name);
         setCurrentRole(role);
-        setLoginPhase(2);
         setLoginPw("");
         setLoginError(false);
+        setLoginLoading(false);
+        setConnecting(true);
+        await loadNotion();
+        return;
       } else {
         setLoginError(true);
         setLoginPw("");
@@ -2056,14 +2058,28 @@ export default function ReconDashboard() {
         <a href="mailto:nox.colina@servco.com" style={{color:"#64748b",fontWeight:600,textDecoration:"none"}}>nox.colina@servco.com</a>
       </div>
 
-      {/* Login — Phase 1: password  |  Phase 2: data source */}
-      {loginPhase === 1 ? (
+      {/* Login */}
+      {connecting ? (
+        /* Auto-connecting after sign-in */
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"14px",width:"100%",maxWidth:"320px"}}>
+          <div style={{
+            width:"36px",height:"36px",borderRadius:"50%",
+            border:"3px solid #cbd5e1",borderTopColor:"#0ea5e9",
+            animation:"spin 0.8s linear infinite",
+          }}/>
+          <div style={{fontSize:"13px",color:"#64748b",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
+            Connecting…
+          </div>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      ) : (
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"12px",width:"100%",maxWidth:"320px"}}>
           <input
             type="password"
             placeholder="Enter password"
             value={loginPw}
             disabled={loginLoading}
+            autoFocus
             onChange={e=>{ setLoginPw(e.target.value); setLoginError(false); }}
             onKeyDown={e=>{ if(e.key==="Enter") handleLogin(); }}
             style={{
@@ -2110,7 +2126,7 @@ export default function ReconDashboard() {
             {loginLoading ? "Checking…" : "Sign In"}
           </button>
           <button
-            onClick={()=>{ setCurrentUser("Demo"); setCurrentRole("admin"); setLoginPhase(2); }}
+            onClick={()=>{ setCurrentUser("Demo"); setCurrentRole("admin"); setNotionMode(false); setSplash(false); }}
             style={{
               background:"transparent",
               color:"#64748b",
@@ -2123,54 +2139,6 @@ export default function ReconDashboard() {
             }}
           >
             Continue as Demo
-          </button>
-        </div>
-      ) : (
-        /* Phase 2 — choose data source */
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"12px",width:"100%",maxWidth:"320px"}}>
-          {currentUser && (
-            <div style={{fontSize:"12px",color:"#64748b",fontFamily:"'DM Sans',sans-serif",marginBottom:"4px"}}>
-              👤 Signed in as <strong>{currentUser}</strong> · {currentRole}
-            </div>
-          )}
-          <button
-            disabled={connecting}
-            onClick={async()=>{ setConnecting(true); await loadNotion(); }}
-            style={{
-              background: connecting ? "#0f172a" : "linear-gradient(135deg,#0ea5e9,#38bdf8)",
-              color: connecting ? "#475569" : "#fff",
-              border: connecting ? "1px solid #1e293b" : "none",
-              borderRadius:"12px",
-              padding:"16px 48px",
-              fontSize:"16px",
-              fontWeight:800,
-              letterSpacing:"0.08em",
-              textTransform:"uppercase",
-              cursor: connecting ? "not-allowed" : "pointer",
-              transition:"all 0.2s",
-              boxShadow: connecting ? "none" : "0 0 40px rgba(14,165,233,0.4), 0 4px 20px rgba(0,0,0,0.4)",
-              transform: connecting ? "scale(0.97)" : "scale(1)",
-              width:"100%",
-            }}
-          >
-            {connecting ? "Connecting…" : "Connect to Notion"}
-          </button>
-          <button
-            onClick={()=>{ setNotionMode(false); setSplash(false); }}
-            style={{
-              background:"transparent",
-              color:"#64748b",
-              border:"1px solid #cbd5e1",
-              borderRadius:"10px",
-              padding:"12px 32px",
-              fontSize:"13px",
-              fontWeight:600,
-              cursor:"pointer",
-              width:"100%",
-              fontFamily:"'DM Sans',sans-serif",
-            }}
-          >
-            Use Demo Data
           </button>
         </div>
       )}
