@@ -215,13 +215,20 @@ function buildEmail(cars, appUrl) {
   const carCard = (c, stageDate) => {
     const daysIn = daysSince(stageDate(c) || c.acquiredDate);
     const link   = vinLink(c.vin);
+    const title  = `${c.year} ${c.make} ${c.model}`;
     return `
       <div style="${CARD_BG}">
         <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:4px">
-          ${c.year} ${c.make} ${c.model}
+          ${link
+            ? `<a href="${link}" style="color:#1e293b;text-decoration:none" title="Open in Recon Dashboard">${title}</a>`
+            : title}
           <span style="font-size:11px;color:#64748b;font-weight:500;margin-left:8px">Stock #${c.stockNo}</span>
         </div>
-        <div style="font-size:12px;color:#475569;margin-bottom:4px;font-family:monospace">VIN: ${c.vin || "–"}</div>
+        <div style="font-size:12px;color:#475569;margin-bottom:4px;font-family:monospace">
+          VIN: ${link
+            ? `<a href="${link}" style="color:#475569;text-decoration:underline dotted" title="Open in Recon Dashboard">${c.vin || "–"}</a>`
+            : (c.vin || "–")}
+        </div>
         <div style="font-size:12px;color:#64748b">
           In stage: <strong>${daysIn !== null ? daysIn + " day" + (daysIn !== 1 ? "s" : "") : "–"}</strong>
           &nbsp;·&nbsp; Acquired: ${fmtDate(c.acquiredDate)}
@@ -322,7 +329,11 @@ export default async function handler(req, res) {
   const NOTION_TOKEN = process.env.VITE_NOTION_TOKEN;
   const LIVE_DB_ID   = process.env.VITE_NOTION_DB_ID;
   const CRON_SECRET  = process.env.CRON_SECRET;
-  const APP_URL      = (process.env.VITE_APP_URL || "").replace(/\/$/, "");
+  // VITE_APP_URL takes precedence; fall back to Vercel's auto-injected VERCEL_URL
+  const APP_URL      = (
+    process.env.VITE_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")
+  ).replace(/\/$/, "");
 
   const auth    = (req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
   const isAdmin = !!NOTION_TOKEN && auth === NOTION_TOKEN;
