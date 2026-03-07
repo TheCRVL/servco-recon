@@ -306,37 +306,46 @@ async function parseAxcessaXLSX(file) {
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
   // Normalize: null / undefined / bare "-" → empty string
   const cl = v => { if (v === null || v === undefined) return ""; const s = String(v).trim(); return s === "-" ? "" : s; };
+  // ── Format detection: read col E (index 4) of the header row ─────────────
+  const colEHeader = cl(rows[0]?.[4]).toLowerCase();
+  const isWholesale = colEHeader === "nuo";
+  const format = isWholesale ? "Wholesale" : "Retail";
+  // ── Column map by format ──────────────────────────────────────────────────
+  const C = isWholesale
+    ? { stock:1, year:3, make:5, model:6, body:7, miles:8, color:9, interior:10, vin:11, title:null }
+    : { stock:1, year:3, make:4, model:5, body:6, miles:7, color:8, interior:9,  vin:10, title:17 };
   const vehicles = [];
   let cur = null;
   // Row 0 = column headers, Row 1 = metadata summary — skip both
   for (let i = 2; i < rows.length; i++) {
     const r    = rows[i];
     if (!r || r.length === 0) continue;
-    const vin  = cl(r[10]); // col K
-    const colD = cl(r[3]);  // col D
+    const vin  = cl(r[C.vin]);
+    const colB = cl(r[1]);   // col B
+    const colD = cl(r[3]);   // col D — note text lives here in both formats
     if (vin.length >= 11) {
       // ── Vehicle row ──────────────────────────────────────────────────────
       if (cur) vehicles.push(cur);
-      const model      = cl(r[5]);
-      const body       = cl(r[6]);
+      const model      = cl(r[C.model]);
+      const body       = cl(r[C.body]);
       const modelFull  = (body && body !== "-") ? `${model} (${body})` : model;
-      const titleRecvd = cl(r[17]); // col R
+      const titleRecvd = C.title !== null ? cl(r[C.title]) : "";
       cur = {
-        stockNo: cl(r[1]), year: cl(r[3]), make: cl(r[4]), model: modelFull,
-        miles: cl(r[7]), color: cl(r[8]), interior: cl(r[9]), vin,
+        stockNo: cl(r[C.stock]), year: cl(r[C.year]), make: cl(r[C.make]), model: modelFull,
+        miles: cl(r[C.miles]), color: cl(r[C.color]), interior: cl(r[C.interior]), vin,
         titleRcvdToggle: titleRecvd !== "",
         notes: [],
       };
-    } else if (!vin && colD && cur) {
-      // ── Note row — col K empty, col D has note text ───────────────────
-      if (colD.toLowerCase() !== "notes:") cur.notes.push(colD);
+    } else if (!vin && !colB && colD.length > 3 && cur) {
+      // ── Note row: VIN col empty, col B empty, col D has text > 3 chars ──
+      cur.notes.push(colD);
     }
   }
   if (cur) vehicles.push(cur);
-  return vehicles;
+  return { vehicles, format };
 }
 
-function buildImportCreateProps(v) {
+function buildImportCreateProps(v, format) {
   const rt = val => ({ rich_text: [{ text: { content: String(val || "") } }] });
   const rtChunked = str => {
     const chunks = [];
@@ -351,12 +360,13 @@ function buildImportCreateProps(v) {
     "Interior":          rt(v.interior),
     "Title RCVD Toggle": { checkbox: !!v.titleRcvdToggle },
     "Stage":             { select: { name: "fresh" } },
+    "Retail/Whsl":       { select: { name: format } },
   };
   if (v.notes.length > 0) props["Notes"] = rtChunked(v.notes.join("\n"));
   return props;
 }
 
-function buildImportUpdateProps(v, p) {
+function buildImportUpdateProps(v, p, format) {
   const getText = prop => (prop?.rich_text || prop?.title || []).map(r => r.plain_text).join("").trim();
   const rt = val => ({ rich_text: [{ text: { content: String(val || "") } }] });
   const updates = {};
@@ -374,11 +384,15 @@ function buildImportUpdateProps(v, p) {
   if (v.titleRcvdToggle && !p["Title RCVD Toggle"]?.checkbox) {
     updates["Title RCVD Toggle"] = { checkbox: true };
   }
+  // Retail/Whsl: fill in if currently empty — existing value always wins
+  if (!p["Retail/Whsl"]?.select?.name) {
+    updates["Retail/Whsl"] = { select: { name: format } };
+  }
   // Notes: intentionally never updated on VIN match
   return updates;
 }
 
-async function runAxcessaImport(vehicles, dbId, onProgress) {
+async function runAxcessaImport(vehicles, format, dbId, onProgress) {
   const results = { created: 0, updated: [], skipped: [], failed: [] };
   for (let i = 0; i < vehicles.length; i++) {
     const v     = vehicles[i];
@@ -388,10 +402,10 @@ async function runAxcessaImport(vehicles, dbId, onProgress) {
       const q        = await notionFetch(`/databases/${dbId}/query`, "POST", { filter: { property: "VIN", rich_text: { equals: v.vin } } });
       const existing = q.results?.[0] || null;
       if (!existing) {
-        await notionFetch("/pages", "POST", { parent: { database_id: dbId }, properties: buildImportCreateProps(v) });
+        await notionFetch("/pages", "POST", { parent: { database_id: dbId }, properties: buildImportCreateProps(v, format) });
         results.created++;
       } else {
-        const updates = buildImportUpdateProps(v, existing.properties);
+        const updates = buildImportUpdateProps(v, existing.properties, format);
         if (Object.keys(updates).length > 0) {
           await notionFetch(`/pages/${existing.id}`, "PATCH", { properties: updates });
           results.updated.push(label);
@@ -1654,22 +1668,23 @@ function AxcessaImportModal({ file, onClose, dark, notionMode }) {
   const text   = dark ? "#e2e8f0" : "#1e293b";
   const sub    = dark ? "#64748b" : "#94a3b8";
 
-  const [phase,    setPhase]    = useState("processing"); // "processing"|"error"|"done"
-  const [progress, setProgress] = useState("Starting…");
-  const [errMsg,   setErrMsg]   = useState("");
-  const [results,  setResults]  = useState(null);
+  const [phase,          setPhase]          = useState("processing"); // "processing"|"error"|"done"
+  const [progress,       setProgress]       = useState("Starting…");
+  const [errMsg,         setErrMsg]         = useState("");
+  const [results,        setResults]        = useState(null);
+  const [detectedFormat, setDetectedFormat] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         if (!notionMode) throw new Error("Notion mode is not active. Enable it first and try again.");
-        const vehicles = await parseAxcessaXLSX(file);
+        const { vehicles, format } = await parseAxcessaXLSX(file);
         if (!vehicles.length) throw new Error("No vehicle rows found in the file.");
-        const res = await runAxcessaImport(vehicles, NOTION_DB_ID, msg => {
+        const res = await runAxcessaImport(vehicles, format, NOTION_DB_ID, msg => {
           if (!cancelled) setProgress(msg);
         });
-        if (!cancelled) { setResults(res); setPhase("done"); }
+        if (!cancelled) { setDetectedFormat(format); setResults(res); setPhase("done"); }
       } catch (e) {
         if (!cancelled) { setErrMsg(e.message); setPhase("error"); }
       }
@@ -1710,7 +1725,12 @@ function AxcessaImportModal({ file, onClose, dark, notionMode }) {
         </>}
 
         {phase === "done" && results && <>
-          <div style={{fontSize:"16px",fontWeight:700,marginBottom:"16px"}}>Import Complete</div>
+          <div style={{fontSize:"16px",fontWeight:700,marginBottom:"8px"}}>Import Complete</div>
+          {detectedFormat && (
+            <div style={{fontSize:"12px",marginBottom:"16px",color:sub}}>
+              Detected format: <span style={{fontWeight:600,color:detectedFormat==="Wholesale"?"#f59e0b":"#3b82f6"}}>{detectedFormat}</span>
+            </div>
+          )}
           <div style={{display:"flex",gap:"12px",marginBottom:"12px"}}>
             <div style={tile(dark?"#14532d":"#dcfce7","#4ade80")}>
               <div style={{fontSize:"28px",fontWeight:700}}>{results.created}</div>
