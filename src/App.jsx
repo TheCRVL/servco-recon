@@ -392,38 +392,34 @@ function buildImportUpdateProps(v, p, format) {
   return updates;
 }
 
-// Batch-decode VINs via NHTSA vPIC — max 50 per request
+// Decode VINs via NHTSA single-VIN GET endpoint (same as Add Vehicle form)
+// Runs up to 8 requests concurrently to keep it fast without hammering the API
 async function decodeVINsBatch(vehicles, onProgress) {
-  const BATCH = 50;
+  const CONCURRENCY = 8;
   const decoded = {}; // keyed by VIN (uppercase)
-  for (let i = 0; i < vehicles.length; i += BATCH) {
-    const chunk = vehicles.slice(i, i + BATCH);
-    onProgress(`Decoding VINs… ${i + 1}–${Math.min(i + BATCH, vehicles.length)} of ${vehicles.length}`);
-    // Format: VIN;modelYear,VIN;modelYear,...
-    const dataStr = chunk.map(v => `${v.vin};${v.year || ""}`).join(",");
+  const decodeOne = async v => {
     try {
-      const res  = await fetch("https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvaluesbatch?format=json", {
-        method:  "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body:    `DATA=${encodeURIComponent(dataStr)}`,
-      });
-      const json = await res.json();
-      for (const r of (json.Results || [])) {
-        const vin   = (r.VIN       || "").toUpperCase();
-        const make  = (r.Make      || "").trim();
-        const model = (r.Model     || "").trim();
-        const year  = (r.ModelYear || "").trim();
-        const body  = (r.BodyClass || "").trim();
-        if (vin && make && model && year) {
-          decoded[vin] = { make, model: body ? `${model} (${body})` : model, year };
-        } else if (vin) {
-          decoded[vin] = null; // decode returned empty — will fall back to Axcessa values
-        }
-      }
+      const res  = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${encodeURIComponent(v.vin)}?format=json`);
+      const data = await res.json();
+      // Same Variable/Value parsing pattern as the Add Vehicle form
+      const get = label => {
+        const item = (data.Results || []).find(r => r.Variable === label);
+        return (item?.Value && item.Value !== "Not Applicable" && item.Value !== "null") ? item.Value.trim() : "";
+      };
+      const make  = get("Make");
+      const model = get("Model");
+      const year  = get("Model Year");
+      const body  = get("Body Class");
+      decoded[v.vin.toUpperCase()] = (make && model && year)
+        ? { make, model: body ? `${model} (${body})` : model, year }
+        : null;
     } catch (_) {
-      // Whole batch request failed — mark all VINs in chunk as fallback
-      for (const v of chunk) decoded[v.vin.toUpperCase()] = null;
+      decoded[v.vin.toUpperCase()] = null;
     }
+  };
+  for (let i = 0; i < vehicles.length; i += CONCURRENCY) {
+    onProgress(`Decoding VINs… ${i + 1}–${Math.min(i + CONCURRENCY, vehicles.length)} of ${vehicles.length}`);
+    await Promise.all(vehicles.slice(i, i + CONCURRENCY).map(decodeOne));
   }
   // Merge decoded values back; set decodeWarning flag for fallback vehicles
   return vehicles.map(v => {
