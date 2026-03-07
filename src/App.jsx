@@ -280,6 +280,134 @@ function carToNotion(car) {
   };
 }
 
+// ─── AXCESSA IMPORT ───────────────────────────────────────────────────────────
+// SheetJS loaded on demand from CDN — cached after first load
+let _xlsxLib = null;
+async function loadXLSX() {
+  if (_xlsxLib) return _xlsxLib;
+  if (window.XLSX) { _xlsxLib = window.XLSX; return _xlsxLib; }
+  await new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+    s.onload = res;
+    s.onerror = () => rej(new Error("Failed to load XLSX library — check your connection."));
+    document.head.appendChild(s);
+  });
+  _xlsxLib = window.XLSX;
+  return _xlsxLib;
+}
+
+async function parseAxcessaXLSX(file) {
+  const XLSX = await loadXLSX();
+  const buf  = await file.arrayBuffer();
+  const wb   = XLSX.read(buf, { type: "array" });
+  const ws   = wb.Sheets["inventory-list"];
+  if (!ws) throw new Error('Sheet "inventory-list" not found. Please check the file.');
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  // Normalize: null / undefined / bare "-" → empty string
+  const cl = v => { if (v === null || v === undefined) return ""; const s = String(v).trim(); return s === "-" ? "" : s; };
+  const vehicles = [];
+  let cur = null;
+  // Row 0 = column headers, Row 1 = metadata summary — skip both
+  for (let i = 2; i < rows.length; i++) {
+    const r    = rows[i];
+    if (!r || r.length === 0) continue;
+    const vin  = cl(r[10]); // col K
+    const colD = cl(r[3]);  // col D
+    if (vin.length >= 11) {
+      // ── Vehicle row ──────────────────────────────────────────────────────
+      if (cur) vehicles.push(cur);
+      const model      = cl(r[5]);
+      const body       = cl(r[6]);
+      const modelFull  = (body && body !== "-") ? `${model} (${body})` : model;
+      const titleRecvd = cl(r[17]); // col R
+      cur = {
+        stockNo: cl(r[1]), year: cl(r[3]), make: cl(r[4]), model: modelFull,
+        miles: cl(r[7]), color: cl(r[8]), interior: cl(r[9]), vin,
+        titleRcvdToggle: titleRecvd !== "",
+        notes: [],
+      };
+    } else if (!vin && colD && cur) {
+      // ── Note row — col K empty, col D has note text ───────────────────
+      if (colD.toLowerCase() !== "notes:") cur.notes.push(colD);
+    }
+  }
+  if (cur) vehicles.push(cur);
+  return vehicles;
+}
+
+function buildImportCreateProps(v) {
+  const rt = val => ({ rich_text: [{ text: { content: String(val || "") } }] });
+  const rtChunked = str => {
+    const chunks = [];
+    for (let i = 0; i < str.length; i += 2000) chunks.push({ text: { content: str.slice(i, i + 2000) } });
+    return { rich_text: chunks.length ? chunks : [{ text: { content: "" } }] };
+  };
+  const props = {
+    "Stock No":          { title: [{ text: { content: v.stockNo || "" } }] },
+    "VIN":               rt(v.vin),    "Year":              rt(v.year),
+    "Make":              rt(v.make),   "Model":             rt(v.model),
+    "Miles":             rt(v.miles),  "Color":             rt(v.color),
+    "Interior":          rt(v.interior),
+    "Title RCVD Toggle": { checkbox: !!v.titleRcvdToggle },
+    "Stage":             { select: { name: "fresh" } },
+  };
+  if (v.notes.length > 0) props["Notes"] = rtChunked(v.notes.join("\n"));
+  return props;
+}
+
+function buildImportUpdateProps(v, p) {
+  const getText = prop => (prop?.rich_text || prop?.title || []).map(r => r.plain_text).join("").trim();
+  const rt = val => ({ rich_text: [{ text: { content: String(val || "") } }] });
+  const updates = {};
+  // Text/title fields — only fill if the existing Notion field is blank
+  for (const [key, val, isTitle] of [
+    ["Stock No", v.stockNo, true], ["VIN", v.vin],  ["Year",     v.year],
+    ["Make",     v.make],          ["Model", v.model], ["Miles",  v.miles],
+    ["Color",    v.color],         ["Interior", v.interior],
+  ]) {
+    if (val && !getText(p[key])) {
+      updates[key] = isTitle ? { title: [{ text: { content: val } }] } : rt(val);
+    }
+  }
+  // Title RCVD Toggle: only flip to true, never to false
+  if (v.titleRcvdToggle && !p["Title RCVD Toggle"]?.checkbox) {
+    updates["Title RCVD Toggle"] = { checkbox: true };
+  }
+  // Notes: intentionally never updated on VIN match
+  return updates;
+}
+
+async function runAxcessaImport(vehicles, dbId, onProgress) {
+  const results = { created: 0, updated: [], skipped: [], failed: [] };
+  for (let i = 0; i < vehicles.length; i++) {
+    const v     = vehicles[i];
+    const label = v.stockNo || v.vin;
+    onProgress(`${i + 1} / ${vehicles.length}  —  ${label}`);
+    try {
+      const q        = await notionFetch(`/databases/${dbId}/query`, "POST", { filter: { property: "VIN", rich_text: { equals: v.vin } } });
+      const existing = q.results?.[0] || null;
+      if (!existing) {
+        await notionFetch("/pages", "POST", { parent: { database_id: dbId }, properties: buildImportCreateProps(v) });
+        results.created++;
+      } else {
+        const updates = buildImportUpdateProps(v, existing.properties);
+        if (Object.keys(updates).length > 0) {
+          await notionFetch(`/pages/${existing.id}`, "PATCH", { properties: updates });
+          results.updated.push(label);
+        } else {
+          results.skipped.push(label);
+        }
+      }
+    } catch (err) {
+      results.failed.push({ label, error: err.message });
+    }
+    // Pace to stay within Notion's ~3 req/sec rate limit
+    if (i < vehicles.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+  return results;
+}
+
 // ─── STATS BAR ────────────────────────────────────────────────────────────────
 // ─── STAGE TIMER HELPERS ─────────────────────────────────────────────────────
 function getStageDays(car) {
@@ -1518,6 +1646,108 @@ function TableView({ cars, onCarClick, dupVINs, dark=false }) {
 }
 
 
+// ─── AXCESSA IMPORT MODAL ────────────────────────────────────────────────────
+function AxcessaImportModal({ file, onClose, dark, notionMode }) {
+  const NOTION_DB_ID = import.meta.env.VITE_NOTION_DB_ID;
+  const bg     = dark ? "#0f172a" : "#ffffff";
+  const border = dark ? "#1e293b" : "#e2e8f0";
+  const text   = dark ? "#e2e8f0" : "#1e293b";
+  const sub    = dark ? "#64748b" : "#94a3b8";
+
+  const [phase,    setPhase]    = React.useState("processing"); // "processing"|"error"|"done"
+  const [progress, setProgress] = React.useState("Starting…");
+  const [errMsg,   setErrMsg]   = React.useState("");
+  const [results,  setResults]  = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!notionMode) throw new Error("Notion mode is not active. Enable it first and try again.");
+        const vehicles = await parseAxcessaXLSX(file);
+        if (!vehicles.length) throw new Error("No vehicle rows found in the file.");
+        const res = await runAxcessaImport(vehicles, NOTION_DB_ID, msg => {
+          if (!cancelled) setProgress(msg);
+        });
+        if (!cancelled) { setResults(res); setPhase("done"); }
+      } catch (e) {
+        if (!cancelled) { setErrMsg(e.message); setPhase("error"); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const overlay = { position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center" };
+  const card    = { background:bg,border:`1px solid ${border}`,borderRadius:"12px",padding:"28px 32px",minWidth:"360px",maxWidth:"520px",width:"90%",color:text,fontFamily:"'DM Sans',sans-serif" };
+  const tile    = (bg2,fg) => ({ background:bg2,color:fg,borderRadius:"8px",padding:"14px 20px",textAlign:"center",flex:1 });
+
+  const StockList = ({ label, items, color }) => items.length === 0 ? null : (
+    <div style={{marginTop:"12px"}}>
+      <div style={{fontSize:"12px",fontWeight:600,color:sub,marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>{label}</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>
+        {items.map((s,i)=>(
+          <span key={i} style={{fontSize:"11px",padding:"2px 8px",borderRadius:"12px",background:dark?"#1e293b":"#f1f5f9",color}}>{s}</span>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={overlay} onClick={e=>e.target===e.currentTarget&&phase!=="processing"&&onClose()}>
+      <div style={card}>
+        {phase === "processing" && <>
+          <div style={{fontSize:"16px",fontWeight:700,marginBottom:"16px"}}>Importing from Axcessa…</div>
+          <div style={{display:"flex",alignItems:"center",gap:"12px",color:sub}}>
+            <div style={{width:"18px",height:"18px",border:`3px solid ${border}`,borderTopColor:"#3b82f6",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+            <span style={{fontSize:"13px"}}>{progress}</span>
+          </div>
+        </>}
+
+        {phase === "error" && <>
+          <div style={{fontSize:"16px",fontWeight:700,marginBottom:"12px"}}>Import Failed</div>
+          <div style={{fontSize:"13px",color:"#f87171",background:dark?"#1e293b":"#fef2f2",borderRadius:"8px",padding:"12px",marginBottom:"16px"}}>{errMsg}</div>
+          <button onClick={onClose} style={{fontSize:"12px",padding:"7px 16px",borderRadius:"6px",border:`1px solid ${border}`,background:"transparent",color:text,cursor:"pointer"}}>Close</button>
+        </>}
+
+        {phase === "done" && results && <>
+          <div style={{fontSize:"16px",fontWeight:700,marginBottom:"16px"}}>Import Complete</div>
+          <div style={{display:"flex",gap:"12px",marginBottom:"12px"}}>
+            <div style={tile(dark?"#14532d":"#dcfce7","#4ade80")}>
+              <div style={{fontSize:"28px",fontWeight:700}}>{results.created}</div>
+              <div style={{fontSize:"11px",opacity:0.8}}>Created</div>
+            </div>
+            <div style={tile(dark?"#1e3a5f":"#dbeafe","#60a5fa")}>
+              <div style={{fontSize:"28px",fontWeight:700}}>{results.updated.length}</div>
+              <div style={{fontSize:"11px",opacity:0.8}}>Updated</div>
+            </div>
+            <div style={tile(dark?"#1e293b":"#f1f5f9",sub)}>
+              <div style={{fontSize:"28px",fontWeight:700}}>{results.skipped.length}</div>
+              <div style={{fontSize:"11px",opacity:0.8}}>No Changes</div>
+            </div>
+            {results.failed.length > 0 && (
+              <div style={tile(dark?"#450a0a":"#fef2f2","#f87171")}>
+                <div style={{fontSize:"28px",fontWeight:700}}>{results.failed.length}</div>
+                <div style={{fontSize:"11px",opacity:0.8}}>Failed</div>
+              </div>
+            )}
+          </div>
+          <StockList label="Updated" items={results.updated} color={dark?"#60a5fa":"#2563eb"}/>
+          <StockList label="No Changes (already up to date)" items={results.skipped} color={sub}/>
+          {results.failed.length > 0 && (
+            <div style={{marginTop:"12px"}}>
+              <div style={{fontSize:"12px",fontWeight:600,color:sub,marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Errors</div>
+              {results.failed.map((f,i)=>(
+                <div key={i} style={{fontSize:"12px",color:"#f87171",marginBottom:"2px"}}>{f.label}: {f.error}</div>
+              ))}
+            </div>
+          )}
+          <button onClick={onClose} style={{marginTop:"20px",fontSize:"12px",padding:"7px 16px",borderRadius:"6px",border:`1px solid ${border}`,background:"transparent",color:text,cursor:"pointer"}}>Close</button>
+        </>}
+      </div>
+    </div>
+  );
+}
+
 // ─── SETTINGS PANEL ──────────────────────────────────────────────────────────
 function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentRole, currentUser }) {
   const bg     = dark ? "#0f172a" : "#ffffff";
@@ -1861,6 +2091,9 @@ export default function ReconDashboard() {
   const [dark, setDark]               = useState(false);
   const [fontSize, setFontSize]       = useState("14px");
   const [showSettings, setShowSettings] = useState(false);
+  const [axcessaFile,  setAxcessaFile]  = useState(null);
+  const axcessaFileRef = React.useRef(null);
+  const isDesktop = useIsDesktop();
   const [swipeUndo, setSwipeUndo]       = useState(null); // {msg,carId,fromStage,nextStageId,clearedFields,timerId}
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
@@ -2459,6 +2692,10 @@ export default function ReconDashboard() {
             </button>
           )}
           <button onClick={()=>setShowSettings(s=>!s)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"14px",padding:"5px 8px",color:dark?"#94a3b8":"#64748b"}} title="Settings">⚙</button>
+          {isDesktop && currentRole !== "viewer" && <>
+            <input ref={axcessaFileRef} type="file" accept=".xlsx" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f)setAxcessaFile(f);}}/>
+            <button onClick={()=>axcessaFileRef.current?.click()} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",padding:"5px 10px",color:dark?"#94a3b8":"#64748b"}} title="Import from Axcessa">↑ Axcessa</button>
+          </>}
           {currentRole!=="viewer"&&(
             <button onClick={()=>setAdding(true)} style={{...btn("#14532d","#4ade80"),fontSize:"11px",padding:"5px 12px"}}>+ Add</button>
           )}
@@ -2608,6 +2845,7 @@ export default function ReconDashboard() {
       {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))} dark={dark}/>}
       {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} onClose={()=>setShowSettings(false)} currentRole={currentRole} currentUser={currentUser}/>}
       {showUserMgmt&&<UserManagementModal onClose={()=>setShowUserMgmt(false)} dark={dark}/>}
+      {axcessaFile&&<AxcessaImportModal file={axcessaFile} onClose={()=>setAxcessaFile(null)} dark={dark} notionMode={notionMode}/>}
     </div>
   );
 }
