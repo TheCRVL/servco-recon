@@ -902,7 +902,7 @@ function CarModal({ car, onClose, onSave, onDelete, onSold, onSwipeAdvance, dark
 
 // ─── ADD CAR MODAL ────────────────────────────────────────────────────────────
 function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
-  const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:"",partsHold:false,needsBodyWork:false,upForSale:false,noPlates:false};
+  const blank = {id:Date.now().toString(),stockNo:"",vin:"",year:"",make:"",model:"",keys:"1",miles:"",color:"",licensePlate:"",acv:"",rw:"R",titleState:"HI",payoffBank:"",acquiredDate:new Date().toISOString().split("T")[0],stage:"fresh",notes:[],payoffSent:"",titleRcvd:"",sentDMV:"",spiTitle:"",regExp:"",scExp:"",inSvc:"",svcDone:"",bodyShop:"",detail:"",pics:"",frontline:"",soldDate:"",partsHold:false,needsBodyWork:false,upForSale:false,noPlates:false};
   const [form,setForm]           = useState(blank);
   const [decoding,setDecoding]   = useState(false);
   const [flashFields,setFlashFields] = useState(new Set());
@@ -972,6 +972,14 @@ function AddCarModal({ onClose, onAdd, existingVINs, dark=false }) {
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
             <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Miles</label>
             <input value={form.miles||""} onChange={e=>set("miles",e.target.value)} style={input({},dark)}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>Color</label>
+            <input value={form.color||""} onChange={e=>set("color",e.target.value)} style={input({},dark)}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+            <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>License Plate</label>
+            <input value={form.licensePlate||""} onChange={e=>set("licensePlate",e.target.value)} style={input({},dark)}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
             <label style={{fontSize:"10px",color:labelColor,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>ACV</label>
