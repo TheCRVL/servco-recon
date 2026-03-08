@@ -1974,23 +1974,6 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
   const [restoreMsg,     setRestoreMsg]     = useState("");
   const [confirmRestore, setConfirmRestore] = useState(false);
 
-  // ── Automated reports state ─────────────────────────────────────────────
-  const [rptSettings,   setRptSettings]   = useState(null);   // null=loading
-  const [rptRecipTxt,   setRptRecipTxt]   = useState("");      // textarea raw text
-  const [rptEnabled,    setRptEnabled]    = useState(false);
-  const [rptSaving,     setRptSaving]     = useState(false);
-  const [rptSending,    setRptSending]    = useState(false);
-  const [rptMsg,        setRptMsg]        = useState("");      // status feedback
-
-  const fmtHST = iso =>
-    iso
-      ? new Date(iso).toLocaleString("en-US", {
-          timeZone: "Pacific/Honolulu",
-          month: "short", day: "numeric", year: "numeric",
-          hour: "numeric", minute: "2-digit", hour12: true,
-        }) + " HST"
-      : "Never";
-
   useEffect(() => {
     if (!isAdmin) return;
     fetch("/api/backup", { headers: { Authorization: `Bearer ${NOTION_TOKEN}` } })
@@ -1999,66 +1982,10 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
       .catch(() => {});
   }, [isAdmin]);
 
-  // Load report settings on mount (admin only)
-  useEffect(() => {
-    if (!isAdmin) return;
-    fetch("/api/report-settings", { headers: { Authorization: `Bearer ${NOTION_TOKEN}` } })
-      .then(r => r.headers.get("content-type")?.includes("application/json") ? r.json() : null)
-      .then(d => {
-        if (!d) return;
-        setRptSettings(d);
-        setRptEnabled(!!d.enabled);
-        setRptRecipTxt((d.recipients || []).join("\n"));
-      })
-      .catch(() => setRptSettings({}));
-  }, [isAdmin]);
 
   // Save report settings
-  const saveRptSettings = async (patch) => {
-    setRptSaving(true); setRptMsg("");
-    try {
-      const recipients = rptRecipTxt.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-      const r = await fetch("/api/report-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${NOTION_TOKEN}` },
-        body: JSON.stringify({ recipients, enabled: rptEnabled, ...patch }),
-      });
-      const d = await r.json();
-      if (r.ok) {
-        setRptSettings(d);
-        setRptMsg("✓ Settings saved");
-      } else {
-        setRptMsg(`❌ ${d.error || "Save failed"}`);
-      }
-    } catch (e) {
-      setRptMsg(`❌ ${e.message}`);
-    }
-    setRptSaving(false);
-    setTimeout(() => setRptMsg(""), 4000);
-  };
 
   // Send report now
-  const sendRptNow = async () => {
-    setRptSending(true); setRptMsg("");
-    try {
-      const r = await fetch("/api/send-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${NOTION_TOKEN}` },
-      });
-      const d = await r.json();
-      if (r.ok && d.success) {
-        setRptMsg(`✓ Sent to ${d.recipients?.length || "?"} recipient${(d.recipients?.length||1)!==1?"s":""}`);
-        setRptSettings(s => ({ ...s, lastSent: d.sentAt, lastStatus: "ok", lastError: null }));
-      } else {
-        setRptMsg(`❌ ${d.error || "Send failed"}`);
-        setRptSettings(s => ({ ...s, lastStatus: "error", lastError: d.error }));
-      }
-    } catch (e) {
-      setRptMsg(`❌ ${e.message}`);
-    }
-    setRptSending(false);
-    setTimeout(() => setRptMsg(""), 6000);
-  };
 
   // Safely parse JSON — throws a readable error if the API returns HTML (not yet deployed)
   const safeJson = async r => {
@@ -2180,69 +2107,6 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
             </div>
           )}
 
-          {/* ── Automated Reports ──────────────────────────────────────────── */}
-          <div style={{borderTop:`1px solid ${border}`,margin:"16px 0"}}/>
-          <div style={{fontSize:"11px",fontWeight:800,color:sub,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:"10px"}}>📧 Automated Reports</div>
-
-          {rptSettings === null ? (
-            <div style={{fontSize:"11px",color:sub}}>Loading…</div>
-          ) : (
-            <>
-              {/* Enable/Disable toggle */}
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}}>
-                <div style={{fontSize:"12px",fontWeight:600,color:text}}>Daily report at 5:30 AM HST</div>
-                <div onClick={()=>setRptEnabled(v=>!v)} style={{width:"36px",height:"20px",borderRadius:"10px",background:rptEnabled?"#3b82f6":"#475569",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-                  <div style={{position:"absolute",top:"2px",left:rptEnabled?"17px":"2px",width:"16px",height:"16px",borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
-                </div>
-              </div>
-
-              {/* Recipients textarea */}
-              <div style={{fontSize:"10px",fontWeight:700,color:sub,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:"4px"}}>Recipients (one per line)</div>
-              <textarea
-                value={rptRecipTxt}
-                onChange={e=>setRptRecipTxt(e.target.value)}
-                placeholder={"kaipo@servco.com\njohn@servco.com"}
-                rows={3}
-                style={{width:"100%",padding:"7px 9px",borderRadius:"7px",border:`1px solid ${border}`,background:dark?"#0a0f1a":"#f8fafc",color:text,fontSize:"11px",fontFamily:"monospace",resize:"vertical",boxSizing:"border-box",outline:"none",marginBottom:"8px"}}
-              />
-
-              {/* Save Settings */}
-              <button
-                onClick={()=>saveRptSettings({})}
-                disabled={rptSaving}
-                style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0",dark),width:"100%",marginBottom:"6px",fontSize:"12px",opacity:rptSaving?0.6:1,color:dark?"#e2e8f0":"#475569"}}
-              >
-                {rptSaving ? "Saving…" : "💾 Save Settings"}
-              </button>
-
-              {/* Send Now */}
-              <button
-                onClick={sendRptNow}
-                disabled={rptSending}
-                style={{...btn(dark?"#1e3a5f":"#eff6ff",dark?"#2563eb":"#2563eb",dark),width:"100%",marginBottom:"6px",fontSize:"12px",opacity:rptSending?0.6:1,color:dark?"#93c5fd":"#1d4ed8"}}
-              >
-                {rptSending ? "Sending…" : "📤 Send Report Now"}
-              </button>
-
-              {/* Feedback message */}
-              {rptMsg && (
-                <div style={{fontSize:"11px",color:rptMsg.startsWith("✓")?(dark?"#4ade80":"#15803d"):(dark?"#f87171":"#dc2626"),marginBottom:"6px",fontWeight:600}}>
-                  {rptMsg}
-                </div>
-              )}
-
-              {/* Last sent status */}
-              {rptSettings.lastSent && (
-                <div style={{fontSize:"11px",color:sub,marginTop:"4px"}}>
-                  Last sent: <span style={{color:text,fontWeight:600}}>{fmtHST(rptSettings.lastSent)}</span>
-                  {rptSettings.lastStatus === "ok" && <span style={{color:dark?"#4ade80":"#16a34a",marginLeft:"6px",fontWeight:700}}>✓ OK</span>}
-                  {rptSettings.lastStatus === "error" && (
-                    <span style={{color:dark?"#f87171":"#dc2626",marginLeft:"6px",fontWeight:700}} title={rptSettings.lastError||""}>⚠ Error</span>
-                  )}
-                </div>
-              )}
-            </>
-          )}
         </>
       )}
     </div>
@@ -2880,7 +2744,7 @@ export default function ReconDashboard() {
         onMouseEnter={e=>e.currentTarget.style.color="#1d4ed8"}
         onMouseLeave={e=>e.currentTarget.style.color="#334155"}
       >
-        V 1 . 5 . 6  · Email Reports & Deep Linking
+        V 1 . 5 . 7  · VIN Deep Linking
       </a>
       <div style={{
         fontSize:"11px",
