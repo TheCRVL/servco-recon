@@ -2289,11 +2289,11 @@ function CreateReportPanel({ cars, dark, onClose }) {
   const STAGE_DATE = { fresh:"acquiredDate", service:"inSvc", detail:"detail", photos:"pics", frontline:"frontline", sold:"soldDate" };
   const daysSince = d => d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null;
 
-  const [selectedStages, setSelectedStages] = React.useState(new Set(["detail","photos"]));
-  const [opts, setOpts] = React.useState({ vinLinks:true, stockNo:true, daysInStage:true, groupByStage:true, healthSummary:true });
-  const [preview, setPreview] = React.useState(null);
-  const [copied, setCopied] = React.useState(false);
-  const [mailtoShortened, setMailtoShortened] = React.useState(false);
+  const [selectedStages, setSelectedStages] = useState(new Set(["detail","photos"]));
+  const [opts, setOpts] = useState({ vinLinks:true, stockNo:true, daysInStage:true, groupByStage:true, healthSummary:true });
+  const [preview, setPreview] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [mailtoShortened, setMailtoShortened] = useState(false);
 
   const toggleStage = id => setSelectedStages(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
   const toggleOpt  = k  => setOpts(o => ({ ...o, [k]: !o[k] }));
@@ -2481,9 +2481,9 @@ function CreateReportPanel({ cars, dark, onClose }) {
 
 // ─── ActivityLogPanel ─────────────────────────────────────────────────────────
 function ActivityLogPanel({ cars, dark, onClose }) {
-  const [expanded, setExpanded] = React.useState(false);
+  const [expanded, setExpanded] = useState(false);
 
-  const allEntries = React.useMemo(() => {
+  const allEntries = useMemo(() => {
     const entries = [];
     for (const c of cars) {
       for (const n of (c.notes || [])) {
@@ -2562,18 +2562,18 @@ function BackupPanel({ dark, onClose, currentRole, currentUser }) {
   const NOTION_TOKEN = import.meta.env.VITE_NOTION_TOKEN || "";
   const safeJson = async r => { try { return await r.json(); } catch (_) { return {}; } };
 
-  const [lastBackup,     setLastBackup]     = React.useState(null);
-  const [backupLoading,  setBackupLoading]  = React.useState(false);
-  const [backupMsg,      setBackupMsg]      = React.useState("");
-  const [restoreLoading, setRestoreLoading] = React.useState(false);
-  const [restoreMsg,     setRestoreMsg]     = React.useState("");
-  const [confirmRestore, setConfirmRestore] = React.useState(false);
+  const [lastBackup,     setLastBackup]     = useState(null);
+  const [backupLoading,  setBackupLoading]  = useState(false);
+  const [backupMsg,      setBackupMsg]      = useState("");
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreMsg,     setRestoreMsg]     = useState("");
+  const [confirmRestore, setConfirmRestore] = useState(false);
 
   const fmtHST = iso => iso
     ? new Date(iso).toLocaleString("en-US",{ timeZone:"Pacific/Honolulu", month:"short", day:"numeric", year:"numeric", hour:"numeric", minute:"2-digit", hour12:true }) + " HST"
     : "Never";
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch("/api/backup", { headers:{ Authorization:`Bearer ${NOTION_TOKEN}` }})
       .then(r => r.headers.get("content-type")?.includes("application/json") ? r.json() : null)
       .then(d => d && setLastBackup(d.lastBackup || null))
