@@ -1974,6 +1974,14 @@ function SettingsPanel({ dark, setDark, fontSize, setFontSize, onClose, currentR
   const [restoreMsg,     setRestoreMsg]     = useState("");
   const [confirmRestore, setConfirmRestore] = useState(false);
 
+  const fmtHST = iso =>
+    iso
+      ? new Date(iso).toLocaleString("en-US", {
+          timeZone: "Pacific/Honolulu",
+          month: "short", day: "numeric", year: "numeric",
+          hour: "numeric", minute: "2-digit", hour12: true,
+        }) + " HST"
+      : "Never";
   useEffect(() => {
     if (!isAdmin) return;
     fetch("/api/backup", { headers: { Authorization: `Bearer ${NOTION_TOKEN}` } })
