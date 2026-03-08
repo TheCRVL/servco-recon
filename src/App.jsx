@@ -2293,7 +2293,6 @@ function CreateReportPanel({ cars, dark, onClose }) {
   const [opts, setOpts] = useState({ vinLinks:true, stockNo:true, daysInStage:true, groupByStage:true, healthSummary:true });
   const [preview, setPreview] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [mailtoShortened, setMailtoShortened] = useState(false);
 
   const toggleStage = id => setSelectedStages(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
   const toggleOpt  = k  => setOpts(o => ({ ...o, [k]: !o[k] }));
@@ -2375,14 +2374,9 @@ function CreateReportPanel({ cars, dark, onClose }) {
   };
 
   const handleEmail = () => {
-    setMailtoShortened(false);
-    const full      = buildReport(true);
-    const condensed = buildReport(false);
-    const useBody   = full.length > 1800 ? condensed : full;
-    if (full.length > 1800) setMailtoShortened(true);
-    const subject   = "Recon Health Report — Servco Leeward";
-    const mailto    = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(useBody)}`;
-    window.location.href = mailto;
+    const body    = buildReport(true);
+    const subject = "Recon Health Report — Servco Leeward";
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const bg    = dark ? "#0f172a" : "#ffffff";
@@ -2455,13 +2449,6 @@ function CreateReportPanel({ cars, dark, onClose }) {
               ✉ Create Email
             </button>
           </div>
-
-          {/* Mailto warning */}
-          {mailtoShortened && (
-            <div style={{background:dark?"#1c1308":"#fffbeb",border:`1px solid ${dark?"#854d0e":"#fde68a"}`,borderRadius:"8px",padding:"10px 14px",fontSize:"12px",color:dark?"#fbbf24":"#92400e",fontWeight:600}}>
-              ⚠ Email shortened for compatibility. Use Copy Report for the full version.
-            </div>
-          )}
 
           {/* Preview */}
           {preview !== null && (
