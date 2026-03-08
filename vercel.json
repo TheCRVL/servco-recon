@@ -1,8 +1,8 @@
 {
+  "rewrites": [
+    { "source": "/vin/(.*)", "destination": "/index.html" }
+  ],
   "crons": [
-    {
-      "path": "/api/backup",
-      "schedule": "0 10 * * *"
-    }
+    { "path": "/api/backup", "schedule": "0 10 * * *" }
   ]
 }

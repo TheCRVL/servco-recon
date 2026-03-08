@@ -2276,6 +2276,398 @@ function UserManagementModal({ onClose, dark=false }) {
   );
 }
 
+// ─── CreateReportPanel ────────────────────────────────────────────────────────
+function CreateReportPanel({ cars, dark, onClose }) {
+  const REPORT_STAGES = [
+    { id:"fresh",     label:"Fresh" },
+    { id:"service",   label:"In Service" },
+    { id:"detail",    label:"Detail" },
+    { id:"photos",    label:"Photos" },
+    { id:"frontline", label:"Frontline ✓" },
+    { id:"sold",      label:"Sold" },
+  ];
+  const STAGE_DATE = { fresh:"acquiredDate", service:"inSvc", detail:"detail", photos:"pics", frontline:"frontline", sold:"soldDate" };
+  const daysSince = d => d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null;
+
+  const [selectedStages, setSelectedStages] = React.useState(new Set(["detail","photos"]));
+  const [opts, setOpts] = React.useState({ vinLinks:true, stockNo:true, daysInStage:true, groupByStage:true, healthSummary:true });
+  const [preview, setPreview] = React.useState(null);
+  const [copied, setCopied] = React.useState(false);
+  const [mailtoShortened, setMailtoShortened] = React.useState(false);
+
+  const toggleStage = id => setSelectedStages(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
+  const toggleOpt  = k  => setOpts(o => ({ ...o, [k]: !o[k] }));
+
+  const buildReport = (full=true) => {
+    const filtered = cars.filter(c => selectedStages.has(c.stage));
+    const appUrl   = window.location.origin;
+    const today    = new Date().toLocaleString("en-US",{ timeZone:"Pacific/Honolulu", weekday:"long", month:"long", day:"numeric", year:"numeric" });
+    const lines    = [];
+
+    lines.push("RECON HEALTH REPORT — SERVCO LEEWARD");
+    lines.push(today);
+    lines.push("");
+
+    if (opts.healthSummary || !full) {
+      lines.push("── PIPELINE SUMMARY ──────────────────────────────");
+      for (const s of REPORT_STAGES) {
+        if (!selectedStages.has(s.id)) continue;
+        const count = filtered.filter(c => c.stage === s.id).length;
+        lines.push(`  ${(s.label + ":").padEnd(16)} ${count} vehicle${count !== 1 ? "s" : ""}`);
+      }
+      const total  = filtered.length;
+      const aging  = filtered.filter(c => { const d = daysSince(c[STAGE_DATE[c.stage]]); return d !== null && d >= 7; });
+      lines.push("  " + "─".repeat(40));
+      lines.push(`  Total: ${total} vehicle${total !== 1 ? "s" : ""}`);
+      if (aging.length) lines.push(`  ⚠ ${aging.length} vehicle${aging.length !== 1 ? "s" : ""} ≥ 7 days in current stage`);
+      lines.push("");
+    }
+
+    if (full) {
+      if (opts.groupByStage) {
+        for (const s of REPORT_STAGES) {
+          if (!selectedStages.has(s.id)) continue;
+          const sc = filtered.filter(c => c.stage === s.id);
+          if (!sc.length) continue;
+          lines.push(`── ${s.label.toUpperCase()} (${sc.length} vehicle${sc.length!==1?"s":""}) ` + "─".repeat(Math.max(0,32-s.label.length)));
+          lines.push("");
+          for (const c of sc) {
+            const parts = [`${c.year||""} ${c.make||""} ${c.model||""}`.trim()];
+            if (opts.stockNo && c.stockNo)      parts.push(`Stock #${c.stockNo}`);
+            const d = daysSince(c[STAGE_DATE[c.stage]]);
+            if (opts.daysInStage && d !== null)  parts.push(`${d}d in stage`);
+            lines.push("  " + parts.join(" · "));
+            if (opts.vinLinks && c.vin) {
+              lines.push(`  VIN: ${c.vin}`);
+              lines.push(`  ${appUrl}/vin/${c.vin}`);
+            }
+            lines.push("");
+          }
+        }
+      } else {
+        for (const c of filtered) {
+          const parts = [`${c.year||""} ${c.make||""} ${c.model||""}`.trim()];
+          if (opts.stockNo && c.stockNo)      parts.push(`Stock #${c.stockNo}`);
+          const d = daysSince(c[STAGE_DATE[c.stage]]);
+          if (opts.daysInStage && d !== null)  parts.push(`${d}d in stage`);
+          lines.push(parts.join(" · "));
+          if (opts.vinLinks && c.vin) {
+            lines.push(`  VIN: ${c.vin}`);
+            lines.push(`  ${appUrl}/vin/${c.vin}`);
+          }
+          lines.push("");
+        }
+      }
+    }
+
+    lines.push("─".repeat(50));
+    lines.push(`Dashboard: ${appUrl}`);
+    return lines.join("\n");
+  };
+
+  const handlePreview = () => setPreview(buildReport(true));
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(buildReport(true)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  const handleEmail = () => {
+    setMailtoShortened(false);
+    const full      = buildReport(true);
+    const condensed = buildReport(false);
+    const useBody   = full.length > 1800 ? condensed : full;
+    if (full.length > 1800) setMailtoShortened(true);
+    const subject   = "Recon Health Report — Servco Leeward";
+    const mailto    = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(useBody)}`;
+    window.location.href = mailto;
+  };
+
+  const bg    = dark ? "#0f172a" : "#ffffff";
+  const text  = dark ? "#f1f5f9" : "#1e293b";
+  const sub   = dark ? "#64748b" : "#94a3b8";
+  const border= dark ? "#1e293b" : "#e2e8f0";
+  const cardBg= dark ? "#0a0f1a" : "#f8fafc";
+
+  const ToggleRow = ({ label, k }) => (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${border}`}}>
+      <span style={{fontSize:"12px",color:text}}>{label}</span>
+      <div onClick={()=>toggleOpt(k)} style={{width:"34px",height:"18px",borderRadius:"9px",background:opts[k]?"#3b82f6":"#475569",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+        <div style={{position:"absolute",top:"2px",left:opts[k]?"17px":"2px",width:"14px",height:"14px",borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,.3)"}}/>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:"16px"}}>
+      <div style={{background:bg,border:`1px solid ${border}`,borderRadius:"14px",width:"100%",maxWidth:"680px",maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,.5)",fontFamily:"'DM Sans',sans-serif"}}>
+
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 22px",borderBottom:`1px solid ${border}`,flexShrink:0}}>
+          <div>
+            <div style={{fontSize:"16px",fontWeight:800,color:text}}>📋 Create Report</div>
+            <div style={{fontSize:"11px",color:sub,marginTop:"2px"}}>Generate a recon status email draft</div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:"20px",cursor:"pointer",color:sub,lineHeight:1,padding:"4px"}}>✕</button>
+        </div>
+
+        <div style={{overflowY:"auto",padding:"18px 22px",display:"flex",flexDirection:"column",gap:"16px"}}>
+
+          {/* Stage Filters */}
+          <div>
+            <div style={{fontSize:"11px",fontWeight:800,color:sub,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:"8px"}}>Pipeline Stages</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+              {REPORT_STAGES.map(s => (
+                <button key={s.id} onClick={()=>toggleStage(s.id)}
+                  style={{padding:"5px 12px",borderRadius:"20px",border:`1px solid ${selectedStages.has(s.id)?"#3b82f6":border}`,background:selectedStages.has(s.id)?(dark?"#1e3a5f":"#eff6ff"):(dark?"#1e293b":"#f8fafc"),color:selectedStages.has(s.id)?(dark?"#93c5fd":"#1d4ed8"):sub,fontSize:"12px",fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}>
+                  {selectedStages.has(s.id) ? "✓ " : ""}{s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Options */}
+          <div>
+            <div style={{fontSize:"11px",fontWeight:800,color:sub,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:"8px"}}>Report Options</div>
+            <div style={{background:cardBg,border:`1px solid ${border}`,borderRadius:"8px",padding:"4px 12px"}}>
+              <ToggleRow label="Recon Health Report summary" k="healthSummary"/>
+              <ToggleRow label="Group by stage"              k="groupByStage"/>
+              <ToggleRow label="Include days in stage"       k="daysInStage"/>
+              <ToggleRow label="Include stock #"             k="stockNo"/>
+              <ToggleRow label="Include VIN links"           k="vinLinks"/>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+            <button onClick={handlePreview}
+              style={{flex:1,minWidth:"120px",padding:"9px 14px",borderRadius:"8px",border:`1px solid ${border}`,background:dark?"#1e293b":"#f1f5f9",color:dark?"#e2e8f0":"#475569",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>
+              👁 Preview Report
+            </button>
+            <button onClick={handleCopy}
+              style={{flex:1,minWidth:"120px",padding:"9px 14px",borderRadius:"8px",border:`1px solid ${copied?"#22c55e":border}`,background:copied?(dark?"#14532d":"#f0fdf4"):(dark?"#1e293b":"#f1f5f9"),color:copied?(dark?"#4ade80":"#15803d"):(dark?"#e2e8f0":"#475569"),fontSize:"12px",fontWeight:700,cursor:"pointer",transition:"all 0.2s"}}>
+              {copied ? "✓ Copied!" : "📋 Copy Report"}
+            </button>
+            <button onClick={handleEmail}
+              style={{flex:1,minWidth:"120px",padding:"9px 14px",borderRadius:"8px",border:"1px solid #2563eb",background:dark?"#1e3a5f":"#eff6ff",color:dark?"#93c5fd":"#1d4ed8",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>
+              ✉ Create Email
+            </button>
+          </div>
+
+          {/* Mailto warning */}
+          {mailtoShortened && (
+            <div style={{background:dark?"#1c1308":"#fffbeb",border:`1px solid ${dark?"#854d0e":"#fde68a"}`,borderRadius:"8px",padding:"10px 14px",fontSize:"12px",color:dark?"#fbbf24":"#92400e",fontWeight:600}}>
+              ⚠ Email shortened for compatibility. Use Copy Report for the full version.
+            </div>
+          )}
+
+          {/* Preview */}
+          {preview !== null && (
+            <div>
+              <div style={{fontSize:"11px",fontWeight:800,color:sub,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:"6px"}}>Preview</div>
+              <pre style={{background:cardBg,border:`1px solid ${border}`,borderRadius:"8px",padding:"14px",fontSize:"11px",color:text,fontFamily:"'DM Mono',monospace",whiteSpace:"pre-wrap",wordBreak:"break-word",maxHeight:"340px",overflowY:"auto",margin:0}}>
+                {preview}
+              </pre>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ActivityLogPanel ─────────────────────────────────────────────────────────
+function ActivityLogPanel({ cars, dark, onClose }) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  const allEntries = React.useMemo(() => {
+    const entries = [];
+    for (const c of cars) {
+      for (const n of (c.notes || [])) {
+        entries.push({ ...n, _car: c });
+      }
+    }
+    entries.sort((a,b) => new Date(b.ts||0) - new Date(a.ts||0));
+    return entries;
+  }, [cars]);
+
+  const visible = allEntries.slice(0, expanded ? 50 : 10);
+
+  const fmtHST = iso => iso
+    ? new Date(iso).toLocaleString("en-US",{ timeZone:"Pacific/Honolulu", month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12:true }) + " HST"
+    : "—";
+
+  const bg    = dark ? "#0f172a" : "#ffffff";
+  const text  = dark ? "#f1f5f9" : "#1e293b";
+  const sub   = dark ? "#64748b" : "#94a3b8";
+  const border= dark ? "#1e293b" : "#e2e8f0";
+  const cardBg= dark ? "#0a0f1a" : "#f8fafc";
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:"16px"}}>
+      <div style={{background:bg,border:`1px solid ${border}`,borderRadius:"14px",width:"100%",maxWidth:"580px",maxHeight:"88vh",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,.5)",fontFamily:"'DM Sans',sans-serif"}}>
+
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 22px",borderBottom:`1px solid ${border}`,flexShrink:0}}>
+          <div>
+            <div style={{fontSize:"16px",fontWeight:800,color:text}}>📜 Activity Log</div>
+            <div style={{fontSize:"11px",color:sub,marginTop:"2px"}}>{allEntries.length} total events across all vehicles</div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:"20px",cursor:"pointer",color:sub,lineHeight:1,padding:"4px"}}>✕</button>
+        </div>
+
+        <div style={{overflowY:"auto",padding:"12px 22px",display:"flex",flexDirection:"column",gap:"6px"}}>
+          {visible.length === 0 && (
+            <div style={{textAlign:"center",padding:"32px",color:sub,fontSize:"13px"}}>No activity recorded yet.</div>
+          )}
+          {visible.map((entry, i) => {
+            const c = entry._car;
+            const isSystem = entry.system === true || entry.author === "system";
+            return (
+              <div key={entry.id || i} style={{background:cardBg,border:`1px solid ${border}`,borderRadius:"8px",padding:"10px 12px"}}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"8px",marginBottom:"4px"}}>
+                  <span style={{fontSize:"10px",fontFamily:"monospace",color:sub,whiteSpace:"nowrap"}}>{fmtHST(entry.ts)}</span>
+                  <span style={{fontSize:"10px",background:dark?"#1e293b":"#f1f5f9",border:`1px solid ${border}`,borderRadius:"4px",padding:"1px 6px",color:sub,whiteSpace:"nowrap",flexShrink:0}}>
+                    {c.year} {c.make} {c.vin ? `· ${c.vin.slice(-6)}` : ""}
+                  </span>
+                </div>
+                <div style={{fontSize:"12px",color:isSystem?sub:text,fontStyle:isSystem?"italic":"normal"}}>
+                  {entry.text || entry.content || "(no text)"}
+                </div>
+                {entry.author && entry.author !== "system" && (
+                  <div style={{fontSize:"10px",color:sub,marginTop:"3px"}}>— {entry.author}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {allEntries.length > 10 && (
+          <div style={{padding:"12px 22px",borderTop:`1px solid ${border}`,flexShrink:0,textAlign:"center"}}>
+            <button onClick={()=>setExpanded(e=>!e)}
+              style={{background:"none",border:`1px solid ${border}`,borderRadius:"8px",padding:"7px 20px",fontSize:"12px",color:sub,cursor:"pointer",fontWeight:600}}>
+              {expanded ? `Show less` : `Show more (up to 50 of ${allEntries.length})`}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── BackupPanel ──────────────────────────────────────────────────────────────
+function BackupPanel({ dark, onClose, currentRole, currentUser }) {
+  const NOTION_TOKEN = import.meta.env.VITE_NOTION_TOKEN || "";
+  const safeJson = async r => { try { return await r.json(); } catch (_) { return {}; } };
+
+  const [lastBackup,     setLastBackup]     = React.useState(null);
+  const [backupLoading,  setBackupLoading]  = React.useState(false);
+  const [backupMsg,      setBackupMsg]      = React.useState("");
+  const [restoreLoading, setRestoreLoading] = React.useState(false);
+  const [restoreMsg,     setRestoreMsg]     = React.useState("");
+  const [confirmRestore, setConfirmRestore] = React.useState(false);
+
+  const fmtHST = iso => iso
+    ? new Date(iso).toLocaleString("en-US",{ timeZone:"Pacific/Honolulu", month:"short", day:"numeric", year:"numeric", hour:"numeric", minute:"2-digit", hour12:true }) + " HST"
+    : "Never";
+
+  React.useEffect(() => {
+    fetch("/api/backup", { headers:{ Authorization:`Bearer ${NOTION_TOKEN}` }})
+      .then(r => r.headers.get("content-type")?.includes("application/json") ? r.json() : null)
+      .then(d => d && setLastBackup(d.lastBackup || null))
+      .catch(()=>{});
+  }, []);
+
+  const runBackup = async () => {
+    setBackupLoading(true); setBackupMsg("");
+    try {
+      const r = await fetch("/api/backup",{ method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${NOTION_TOKEN}` }});
+      const d = await safeJson(r);
+      if (d.success) {
+        setLastBackup(d.timestamp);
+        setBackupMsg(`✓ Synced ${d.synced} record${d.synced!==1?"s":""}${d.deleted?`, archived ${d.deleted}`:""}`);
+      } else { setBackupMsg(`❌ ${d.error||"Backup failed"}`); }
+    } catch(e) { setBackupMsg(`❌ ${e.message}`); }
+    setBackupLoading(false);
+  };
+
+  const runRestore = async () => {
+    setConfirmRestore(false); setRestoreLoading(true); setRestoreMsg("");
+    try {
+      const r = await fetch("/api/restore",{ method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${NOTION_TOKEN}` }});
+      const d = await safeJson(r);
+      if (d.success) { setRestoreMsg(`✓ Restored ${d.restored} record${d.restored!==1?"s":""}`); }
+      else { setRestoreMsg(`❌ ${d.error||"Restore failed"}`); }
+    } catch(e) { setRestoreMsg(`❌ ${e.message}`); }
+    setRestoreLoading(false);
+  };
+
+  const bg    = dark ? "#0f172a" : "#ffffff";
+  const text  = dark ? "#f1f5f9" : "#1e293b";
+  const sub   = dark ? "#64748b" : "#94a3b8";
+  const border= dark ? "#1e293b" : "#e2e8f0";
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:"16px"}}>
+      <div style={{background:bg,border:`1px solid ${border}`,borderRadius:"14px",width:"100%",maxWidth:"420px",boxShadow:"0 20px 60px rgba(0,0,0,.5)",fontFamily:"'DM Sans',sans-serif"}}>
+
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 22px",borderBottom:`1px solid ${border}`}}>
+          <div>
+            <div style={{fontSize:"16px",fontWeight:800,color:text}}>💾 Backup / Restore</div>
+            <div style={{fontSize:"11px",color:sub,marginTop:"2px"}}>Last backup: <span style={{color:text,fontWeight:600}}>{fmtHST(lastBackup)}</span></div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:"20px",cursor:"pointer",color:sub,lineHeight:1,padding:"4px"}}>✕</button>
+        </div>
+
+        <div style={{padding:"18px 22px",display:"flex",flexDirection:"column",gap:"10px"}}>
+          <button onClick={runBackup} disabled={backupLoading}
+            style={{width:"100%",padding:"10px",borderRadius:"8px",border:`1px solid ${border}`,background:dark?"#1e293b":"#f1f5f9",color:dark?"#e2e8f0":"#475569",fontSize:"13px",fontWeight:700,cursor:"pointer",opacity:backupLoading?0.6:1}}>
+            {backupLoading ? "Running…" : "🔄 Run Backup Now"}
+          </button>
+          {backupMsg && (
+            <div style={{fontSize:"12px",color:backupMsg.startsWith("✓")?(dark?"#4ade80":"#15803d"):(dark?"#f87171":"#dc2626"),fontWeight:600}}>
+              {backupMsg}
+            </div>
+          )}
+
+          <div style={{borderTop:`1px solid ${border}`,paddingTop:"10px"}}>
+            {!confirmRestore ? (
+              <button onClick={()=>setConfirmRestore(true)} disabled={restoreLoading}
+                style={{width:"100%",padding:"10px",borderRadius:"8px",border:"1px solid #dc2626",background:dark?"#450a0a":"#fef2f2",color:dark?"#f87171":"#dc2626",fontSize:"13px",fontWeight:700,cursor:"pointer",opacity:restoreLoading?0.6:1}}>
+                ⏪ Restore Latest Backup
+              </button>
+            ) : (
+              <div style={{background:dark?"#1c0a0a":"#fff5f5",border:`1px solid #dc2626`,borderRadius:"8px",padding:"12px 14px"}}>
+                <div style={{fontSize:"12px",color:dark?"#f87171":"#dc2626",fontWeight:700,marginBottom:"10px"}}>
+                  ⚠ This will overwrite all current data. Are you sure?
+                </div>
+                <div style={{display:"flex",gap:"8px"}}>
+                  <button onClick={()=>setConfirmRestore(false)}
+                    style={{flex:1,padding:"8px",borderRadius:"7px",border:`1px solid ${border}`,background:dark?"#1e293b":"#f1f5f9",color:sub,fontSize:"12px",fontWeight:600,cursor:"pointer"}}>
+                    Cancel
+                  </button>
+                  <button onClick={runRestore}
+                    style={{flex:1,padding:"8px",borderRadius:"7px",border:"1px solid #dc2626",background:"#dc2626",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>
+                    Yes, Restore
+                  </button>
+                </div>
+              </div>
+            )}
+            {restoreMsg && (
+              <div style={{fontSize:"12px",color:restoreMsg.startsWith("✓")?(dark?"#4ade80":"#15803d"):(dark?"#f87171":"#dc2626"),fontWeight:600,marginTop:"8px"}}>
+                {restoreMsg}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function ReconDashboard() {
   const [cars, setCars]               = useState(MOCK);
@@ -2299,7 +2691,8 @@ export default function ReconDashboard() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [currentUser, setCurrentUser]   = useState(null);
   const [currentRole, setCurrentRole]   = useState(null);
-  const [showUserMgmt, setShowUserMgmt] = useState(false);
+  const [adminPanel, setAdminPanel]         = useState(null); // "users"|"report"|"backup"|"activity"
+  const [showUsernameMenu, setShowUsernameMenu] = useState(false);
   const [connecting, setConnecting]     = useState(false);
   const [lastSynced, setLastSynced]   = useState(null);
   const [syncAgo, setSyncAgo]         = useState("");
@@ -2310,13 +2703,18 @@ export default function ReconDashboard() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [axcessaFile,  setAxcessaFile]    = useState(null);
   const axcessaFileRef = useRef(null);
-  const mobileMenuRef  = useRef(null);
+  const mobileMenuRef    = useRef(null);
+  const usernameMenuRef  = useRef(null);
   const isDesktop = useIsDesktop();
   const [swipeUndo, setSwipeUndo]       = useState(null); // {msg,carId,fromStage,nextStageId,clearedFields,timerId}
   // VIN deep-link: read ?vin= from URL on load; open that vehicle after login + data load
   const [pendingVin, setPendingVin]     = useState(() => {
-    try { return new URLSearchParams(window.location.search).get("vin") || null; }
-    catch (_) { return null; }
+    try {
+      const qp = new URLSearchParams(window.location.search).get("vin");
+      if (qp) return qp;
+      const pm = window.location.pathname.match(/^\/vin\/([^/]+)/i);
+      return pm ? pm[1] : null;
+    } catch (_) { return null; }
   });
 
   const toast = msg => { setStatus(msg); setTimeout(()=>setStatus(""),4000); };
@@ -2393,6 +2791,21 @@ export default function ReconDashboard() {
       document.removeEventListener("touchstart", handler);
     };
   }, [showMobileMenu]);
+
+  // Close username dropdown when clicking outside it
+  useEffect(() => {
+    if (!showUsernameMenu) return;
+    const handler = e => {
+      if (usernameMenuRef.current && !usernameMenuRef.current.contains(e.target))
+        setShowUsernameMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [showUsernameMenu]);
 
   // VIN deep-link: after login + cars load, auto-open the vehicle whose VIN is in the URL
   useEffect(() => {
@@ -2752,7 +3165,7 @@ export default function ReconDashboard() {
         onMouseEnter={e=>e.currentTarget.style.color="#1d4ed8"}
         onMouseLeave={e=>e.currentTarget.style.color="#334155"}
       >
-        V 1 . 5 . 7  · VIN Deep Linking
+        V 1 . 6 . 0  · Admin Tools & Report Builder
       </a>
       <div style={{
         fontSize:"11px",
@@ -2954,10 +3367,16 @@ export default function ReconDashboard() {
                   style={{...mobileMenuItem(dark),color:notionMode?"#60a5fa":(dark?"#94a3b8":"#64748b")}}>
                   {notionMode?"🔗 Go Offline":"🔗 Connect Notion"}
                 </button>
-                {currentRole==="admin"&&(
-                  <button onClick={()=>{setShowUserMgmt(true);setShowMobileMenu(false);}}
+                {currentRole==="admin"&&(<>
+                  <button onClick={()=>{setAdminPanel("users");setShowMobileMenu(false);}}
                     style={mobileMenuItem(dark)}>👥 Users</button>
-                )}
+                  <button onClick={()=>{setAdminPanel("report");setShowMobileMenu(false);}}
+                    style={mobileMenuItem(dark)}>📋 Create Report</button>
+                  <button onClick={()=>{setAdminPanel("backup");setShowMobileMenu(false);}}
+                    style={mobileMenuItem(dark)}>💾 Backup / Restore</button>
+                  <button onClick={()=>{setAdminPanel("activity");setShowMobileMenu(false);}}
+                    style={mobileMenuItem(dark)}>📜 Activity Log</button>
+                </>)}
                 <button onClick={()=>{setShowSettings(s=>!s);setShowMobileMenu(false);}}
                   style={mobileMenuItem(dark)}>⚙ Settings</button>
                 {currentRole!=="viewer"&&(
@@ -2977,18 +3396,33 @@ export default function ReconDashboard() {
             )}
             {status&&<span style={{fontSize:"11px",color:"#4ade80",padding:"3px 8px",background:"#14532d33",border:"1px solid #15803d",borderRadius:"6px",whiteSpace:"nowrap"}}>{status}</span>}
             {currentUser&&(
-              <span style={{fontSize:"10px",color:dark?"#475569":"#94a3b8",padding:"3px 8px",background:dark?"#0f172a":"#f1f5f9",border:`1px solid ${dark?"#1e293b":"#e2e8f0"}`,borderRadius:"6px",whiteSpace:"nowrap",fontFamily:"'DM Sans',sans-serif",fontWeight:600}}>
-                👤 {currentUser} · {currentRole}
-              </span>
+              <div style={{position:"relative"}} ref={usernameMenuRef}>
+                <button
+                  onClick={()=>{ if(currentRole==="admin") setShowUsernameMenu(m=>!m); }}
+                  style={{...btn(dark?"#0f172a":"#f1f5f9",dark?"#1e293b":"#e2e8f0"),fontSize:"10px",padding:"3px 8px",fontFamily:"'DM Sans',sans-serif",fontWeight:600,color:dark?"#475569":"#94a3b8",cursor:currentRole==="admin"?"pointer":"default",whiteSpace:"nowrap"}}>
+                  👤 {currentUser} · {currentRole}{currentRole==="admin"?" ▾":""}
+                </button>
+                {showUsernameMenu&&currentRole==="admin"&&(
+                  <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:600,background:dark?"#0f172a":"#ffffff",border:`1px solid ${dark?"#334155":"#e2e8f0"}`,borderRadius:"10px",boxShadow:"0 8px 24px rgba(0,0,0,0.35)",minWidth:"180px",padding:"6px",display:"flex",flexDirection:"column",gap:"2px"}}>
+                    {[
+                      {icon:"👥",label:"Users",            panel:"users"},
+                      {icon:"📋",label:"Create Report",    panel:"report"},
+                      {icon:"💾",label:"Backup / Restore", panel:"backup"},
+                      {icon:"📜",label:"Activity Log",     panel:"activity"},
+                    ].map(item=>(
+                      <button key={item.panel}
+                        onClick={()=>{setAdminPanel(item.panel);setShowUsernameMenu(false);}}
+                        style={{...mobileMenuItem(dark),textAlign:"left",display:"flex",gap:"8px",alignItems:"center"}}>
+                        <span>{item.icon}</span><span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             <button onClick={()=>{setNotionMode(n=>!n);if(!notionMode)loadNotion();}} style={{...btn(notionMode?"#1a2744":"#1e293b",notionMode?"#3b82f6":"#334155"),fontSize:"11px",padding:"5px 10px"}}>
               {notionMode?"🔗 Live":"🔗 Notion"}
             </button>
-            {currentRole==="admin"&&(
-              <button onClick={()=>setShowUserMgmt(true)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"11px",padding:"5px 10px",color:dark?"#94a3b8":"#64748b"}}>
-                👥 Users
-              </button>
-            )}
             <button onClick={()=>setShowSettings(s=>!s)} style={{...btn(dark?"#1e293b":"#f1f5f9",dark?"#334155":"#e2e8f0"),fontSize:"14px",padding:"5px 8px",color:dark?"#94a3b8":"#64748b"}} title="Settings">⚙</button>
             {currentRole !== "viewer" && <>
               <input ref={axcessaFileRef} type="file" accept=".xlsx" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f)setAxcessaFile(f);}}/>
@@ -3179,7 +3613,10 @@ export default function ReconDashboard() {
       <PrintSheet vehicles={printQueue}/>
       {adding&&<AddCarModal onClose={()=>setAdding(false)} onAdd={handleAdd} existingVINs={new Set(activeCars.filter(c=>c.vin).map(c=>c.vin.toUpperCase()))} dark={dark}/>}
       {showSettings&&<SettingsPanel dark={dark} setDark={setDark} fontSize={fontSize} setFontSize={setFontSize} onClose={()=>setShowSettings(false)} currentRole={currentRole} currentUser={currentUser}/>}
-      {showUserMgmt&&<UserManagementModal onClose={()=>setShowUserMgmt(false)} dark={dark}/>}
+      {adminPanel==="users"   &&<UserManagementModal onClose={()=>setAdminPanel(null)} dark={dark}/>}
+      {adminPanel==="report"  &&<CreateReportPanel cars={cars} dark={dark} onClose={()=>setAdminPanel(null)}/>}
+      {adminPanel==="backup"  &&<BackupPanel dark={dark} onClose={()=>setAdminPanel(null)} currentRole={currentRole} currentUser={currentUser}/>}
+      {adminPanel==="activity"&&<ActivityLogPanel cars={cars} dark={dark} onClose={()=>setAdminPanel(null)}/>}
       {axcessaFile&&<AxcessaImportModal file={axcessaFile} onClose={()=>setAxcessaFile(null)} dark={dark} notionMode={notionMode}/>}
     </div>
   );
